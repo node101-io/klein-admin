@@ -1,0 +1,9 @@
+extends ../partials/head
+block content
+  .all-wrapper
+    form.login-form#form
+      h1.general-title= __('Klein Admin Login')
+      h2.general-text= __('Please log in to manage and deploy Klein.')
+      input.general-input#password(type='password' placeholder=__('Password') autofocus autocomplete='off')
+      button.general-button= __('Log In')
+      .general-error#error(style='display: none;')= __('The password is wrong.')
