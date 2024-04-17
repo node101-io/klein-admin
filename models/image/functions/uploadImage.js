@@ -32,7 +32,6 @@ module.exports = (data, callback) => {
       };
 
       s3.upload(params, (err, response) => {
-        console.log(err, 'whyyyy')
         if (err) return callback(err);
 
         return callback(null, response.Location);

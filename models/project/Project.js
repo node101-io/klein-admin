@@ -48,10 +48,8 @@ const ProjectSchema = new Schema({
     maxlength: MAX_DATABASE_TEXT_FIELD_LENGTH
   },
   image: {
-    type: String,
-    default: null,
-    minlength: 1,
-    maxlength: MAX_DATABASE_TEXT_FIELD_LENGTH
+    type: Array,
+    default: []
   },
   properties: { // Properties of the project.
     type: Object,
@@ -284,27 +282,37 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
     Image.createImage({
       file_name: file.filename,
       original_name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
-      width: IMAGE_WIDTH,
-      height: IMAGE_HEIGHT,
+      resize_parameters: [{
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT
+      }, {
+        fit: 'cover',
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT * 2
+      }, {
+        fit: 'contain',
+        width: IMAGE_WIDTH * 3,
+        height: IMAGE_HEIGHT
+      }],
       is_used: true
-    }, (err, url) => {
+    }, (err, image) => {
       if (err) return callback(err);
 
       Project.findByIdAndUpdate(project._id, { $set: {
-        image: url
+        image: image.url_list
       }}, err => {
         if (err) return callback(err);
 
-        deleteFile(file, err => {
+        deleteFile(file, err => { // Yunus'a sor
           if (err) return callback(err);
 
           if (!project.image || project.image.split('/')[project.image.split('/').length - 1] == url.split('/')[url.split('/').length - 1])
             return callback(null, url);
 
-          Image.findImageByUrlAndDelete(project.image, err => {
+          Image.findImageByUrlAndDelete(image._id, err => {
             if (err) return callback(err);
 
-            return callback(null, url);
+            return callback(null, image.url_list);
           });
         });
       });
