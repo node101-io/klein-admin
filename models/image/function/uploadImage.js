@@ -27,7 +27,7 @@ module.exports = (data, callback) => {
       .webp()
       .toBuffer()
       .then(image => {
-        const params = {
+        const uploadParams = {
           Bucket: process.env.AWS_BUCKET_NAME,
           Key: `${data.original_name}-${resizeParameters[time].width}w-${resizeParameters[time].height}h`,
           Body: image,
@@ -35,7 +35,7 @@ module.exports = (data, callback) => {
           ACL: 'public-read'
         };
 
-        s3.upload(params, (err, response) => {
+        s3.upload(uploadParams, (err, response) => {
           if (err) return callback(err);
 
           url_list.push({
@@ -44,12 +44,13 @@ module.exports = (data, callback) => {
             height: resizeParameters[time].height
           });
 
-          if (url_list.length == resizeParameters.length)
-            return callback(null, url_list);
-
           next();
         });
       })
       .catch(err => callback('database_error'));
+  }, err => {
+    if (err) return callback(err);
+
+    return callback(null, url_list);
   });
 };
