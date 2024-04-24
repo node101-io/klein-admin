@@ -281,7 +281,7 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
 
     Image.createImage({
       file_name: file.filename,
-      original_name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
+      name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
       resize_parameters: [{
         width: IMAGE_WIDTH,
         height: IMAGE_HEIGHT

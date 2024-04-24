@@ -1,16 +1,21 @@
 const async = require('async');
 const mongoose = require('mongoose');
+const validator = require('validator');
 
-const toURLString = require('../../utils/toURLString');
+const deleteImages = require('./functions/deleteImages');
+const formatImage = require('./functions/formatImage');
+const generateRandomImageHEX = require('./functions/generateRandomImageHEX');
+const renameImages = require('./functions/renameImages');
+const toImageURLString = require('./functions/toImageURLString');
+const uploadImages = require('./functions/uploadImages');
 
-const copyImage = require('./functions/copyImage');
-const deleteImage = require('./functions/deleteImage');
-const uploadImage = require('./functions/uploadImage');
-
+const DEFAULT_FIT_PARAMETER = 'cover';
 const DUPLICATED_UNIQUE_FIELD_ERROR_CODE = 11000;
+const EXPIRED_IMAGE_DELETION_LIMIT = 10;
+const FIT_PARAMETERS = ['contain', 'cover', 'fill', 'inside', 'outside'];
+const MAX_DATABASE_ARRAY_FIELD_LENGTH = 1e2;
 const MAX_DATABASE_TEXT_FIELD_LENGTH = 1e4;
 const MAX_IMAGE_SIZE = 1e4;
-const MAX_ITEM_COUNT_PER_CRON_JOB = 1e2;
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const Schema = mongoose.Schema;
@@ -19,106 +24,100 @@ const ImageSchema = new Schema({
   name: {
     type: String,
     required: true,
+    trim: true,
     unique: true,
     minlength: 1,
-    maxlength: MAX_DATABASE_TEXT_FIELD_LENGTH,
-    trim: true
+    maxlength: MAX_DATABASE_TEXT_FIELD_LENGTH
   },
-  url: {
-    type: String,
-    minlength: 1,
-    maxlength: MAX_DATABASE_TEXT_FIELD_LENGTH,
-    required: true,
-    unique: true
+  url_list: {
+    type: Array,
+    default: [],
+    maxlength: MAX_DATABASE_ARRAY_FIELD_LENGTH
   },
-  width: {
-    type: Number,
-    default: null,
-    min: 1,
-    max: MAX_IMAGE_SIZE
-  },
-  height: {
-    type: Number,
-    default: null,
-    min: 1,
-    max: MAX_IMAGE_SIZE
-  },
+  // delete_uploaded_file: {
+  //   type: Boolean,
+  //   default: false
+  // },
   expiration_date: {
     type: Number,
-    required: true
-  },
-  is_used: {
-    type: Boolean,
-    default: false
+    required: true,
+    default: null
   }
 });
 
 ImageSchema.statics.createImage = function (data, callback) {
   const Image = this;
 
-  if (!data.file_name)
+  if (!data || typeof data != 'object')
     return callback('bad_request');
 
-  if (data.original_name && typeof data.original_name == 'string')
-    data.original_name = toURLString(data.original_name);
-  else
-    data.original_name = data.file_name;
-
-  if (!data.width || isNaN(parseInt(data.width)) || parseInt(data.width) <= 0 || parseInt(data.width) > MAX_IMAGE_SIZE)
-    data.width = null;
-  else
-    data.width = parseInt(data.width);
-
-  if (!data.height || isNaN(parseInt(data.height)) || parseInt(data.height) <= 0 || parseInt(data.height) > MAX_IMAGE_SIZE)
-    data.height = null;
-  else
-    data.height = parseInt(data.height);
-
-  if (!data.width && !data.height)
+  if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.trim() || data.file_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
     return callback('bad_request');
 
-  uploadImage(data, (err, url) => {
+  if (data.name && typeof data.name != 'string')
+    data.name = toImageURLString(data.name);
+  else
+    data.name = generateRandomImageHEX();
+
+  if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
+    return callback('bad_request');
+
+  for (resize_parameter in data.resize_parameters) {
+    if (!resize_parameter.fit)
+      resize_parameter.fit = DEFAULT_FIT_PARAMETER;
+
+    if (!FIT_PARAMETERS.includes(resize_parameter.fit))
+      return callback('bad_request');
+
+    resize_parameter.width = (!resize_parameter.width || isNaN(parseInt(resize_parameter.width)) || parseInt(resize_parameter.width) <= 0 || parseInt(resize_parameter.width) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.width);
+    resize_parameter.height = (!resize_parameter.height || isNaN(parseInt(resize_parameter.height)) || parseInt(resize_parameter.height) <= 0 || parseInt(resize_parameter.height) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.height);
+
+    if (!resize_parameter.width && !resize_parameter.height)
+      return callback('bad_request');
+  };
+
+  uploadImages(data, (err, url_list) => {
     if (err) return callback('aws_database_error');
 
-    Image.findOne({
-      name: data.original_name
-    }, (err, image) => {
-      if (err) return callback('database_error');
+    const newImageData = {
+      name: data.name,
+      url_list
+    };
 
-      if (err || !image) {
-        const newImageData = {
-          name: data.original_name,
-          url,
-          width: data.width,
-          height: data.height,
-          expiration_date: (new Date).getTime() + ONE_DAY_IN_MS,
-          is_used: data.is_used ? true : false
-        };
+    if (!data.is_used)
+      newImageData.expiration_date = Date.now() + ONE_DAY_IN_MS;
 
-        const newImage = new Image(newImageData);
+    const newImage = new Image(newImageData);
 
-        newImage.save((err, image) => {
-          if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-            return callback('duplicated_unique_field');
+    newImage.save((err, image) => {
+      if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE) {
+        Image.findOneAndUpdate({
+          name: data.name
+        }, { $set: {
+          url_list: image.url_list
+        }}, { new: true }, (err, image) => {
           if (err) return callback('database_error');
 
           Image.findExpiredImagesAndDelete(err => {
             if (err) console.log(err);
 
-            return callback(null, image.url);
+            formatImage(image, (err, image) => {
+              if (err) return callback(err);
+
+              return callback(null, image);
+            });
           });
         });
+      } else if (err) {
+        return callback('database_error');
       } else {
-        Image.findByIdAndUpdate(image._id, {$set: {
-          width: data.width,
-          height: data.height
-        }}, (err, image) => {
-          if (err) return callback('database_error');
+        Image.findExpiredImagesAndDelete(err => {
+          if (err) console.log(err);
 
-          Image.findExpiredImagesAndDelete(err => {
-            if (err) console.log(err);
+          formatImage(image, (err, image) => {
+            if (err) return callback(err);
 
-            return callback(null, image.url);
+            return callback(null, image);
           });
         });
       };
@@ -126,15 +125,13 @@ ImageSchema.statics.createImage = function (data, callback) {
   });
 };
 
-ImageSchema.statics.findImageByUrl = function (url, callback) {
+ImageSchema.statics.findImageById = function (id, callback) {
   const Image = this;
 
-  if (!url || typeof url != 'string')
+  if (!id || !validator.isMongoId(id.toString()))
     return callback('bad_request');
 
-  Image.findOne({
-    url: url.trim()
-  }, (err, image) => {
+  Image.findById(mongoose.Types.ObjectId(id.toString()), (err, image) => {
     if (err) return callback('database_error');
     if (!image) return callback('document_not_found');
 
@@ -142,16 +139,128 @@ ImageSchema.statics.findImageByUrl = function (url, callback) {
   });
 };
 
-ImageSchema.statics.findImageByUrlAndDelete = function (url, callback) {
+ImageSchema.statics.findImageByIdAndFormat = function (id, callback) {
   const Image = this;
 
-  Image.findImageByUrl(url, (err, image) => {
+  if (!id || !validator.isMongoId(id.toString()))
+    return callback('bad_request');
+
+  Image.findImageById(id, (err, image) => {
     if (err) return callback(err);
 
-    deleteImage(image.url, err => {
-      if (err) return callback('aws_database_error');
+    formatImage(image, (err, image) => {
+      if (err) return callback(err);
 
-      Image.findByIdAndDelete(mongoose.Types.ObjectId(image._id.toString())  , err => {
+      return callback(null, image);
+    });
+  });
+};
+
+ImageSchema.statics.findImageByIdAndUpdate = function (id, data, callback) {
+  const Image = this;
+
+  if (!id || !validator.isMongoId(id.toString()))
+    return callback('bad_request');
+
+  if (!data || typeof data != 'object')
+    return callback('bad_request');
+
+  const updateData = {};
+
+  if (data.name && typeof data.name == 'string' && data.name.trim() && data.name.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.name = toImageURLString(data.name);
+
+  if (data.is_used)
+    updateData.expiration_date = null;
+
+  if (!Object.keys(updateData).length)
+    return callback('bad_request');
+
+  Image.findByIdAndUpdate(mongoose.Types.ObjectId(id.toString()), { $set:
+    updateData
+  }, { new: false }, (err, image) => {
+    if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+      return callback('duplicated_unique_field');
+
+    if (err) return callback('database_error');
+
+    if (!image) return callback('document_not_found');
+
+    if (updateData.name != image.name) {
+      const renameParameters = {
+        name: updateData.name,
+        url_list: image.url_list
+      };
+
+      renameImages(renameParameters, (err, url_list) => {
+        if (err) return callback(err);
+
+        Image.findByIdAndUpdate(mongoose.Types.ObjectId(id.toString()), { $set: {
+          url_list
+        }}, { new: true }, (err, image) => {
+          if (err) return callback('database_error');
+
+          formatImage(image, (err, image) => {
+            if (err) return callback(err);
+
+            return callback(null, image);
+          });
+        });
+      });
+    } else if (!updateData.expiration_date) {
+      formatImage(image, err => {
+        if (err) return callback(err);
+
+        return callback(null, image);
+      });
+    };
+  });
+};
+
+ImageSchema.statics.findImageByIdAndRename = function (id, new_name, callback) {
+  const Image = this;
+
+  if (!id || !validator.isMongoId(id.toString()))
+    return callback('bad_request');
+
+  if (!new_name || typeof new_name != 'string' || !new_name.trim() || new_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
+    return callback('bad_request');
+
+  Image.findImageByIdAndUpdate(id, { name: new_name }, (err, image) => {
+    if (err) return callback(err);
+
+    return callback(null, image);
+  });
+};
+
+ImageSchema.statics.findImageByIdAndSetAsUsed = function (id, callback) {
+  const Image = this;
+
+  if (!id || !validator.isMongoId(id.toString()))
+    return callback('bad_request');
+
+  Image.findImageByIdAndUpdate(id, { is_used: true }, (err, image) => {
+    if (err) return callback(err);
+
+    return callback(null, image);
+  });
+};
+
+ImageSchema.statics.findImageByIdAndDelete = function (id, callback) {
+  const Image = this;
+
+  if (!id || !validator.isMongoId(id.toString()))
+    return callback('bad_request');
+
+  Image.findImageById(id, (err, image) => {
+    if (err) return callback(err);
+
+    const urlList = image.url_list;
+
+    deleteImages(urlList, err => {
+      if (err) return callback(err);
+
+      Image.findByIdAndDelete(id, err => {
         if (err) return callback('database_error');
 
         return callback(null);
@@ -165,79 +274,21 @@ ImageSchema.statics.findExpiredImagesAndDelete = function (callback) {
 
   Image
     .find({
-      is_used: false,
-      expiration_date: { $lt: (new Date()).getTime() }
+      expiration_date: { $lt: Date.now() }
     })
-    .limit(MAX_ITEM_COUNT_PER_CRON_JOB)
+    .limit(EXPIRED_IMAGE_DELETION_LIMIT)
     .then(images => async.timesSeries(
       images.length,
-      (time, next) => Image.findImageByUrlAndDelete(images[time].url, err => next(err)),
+      (time, next) => Image.findImageByIdAndDelete(images[time]._id, err => next(err)),
       err => {
         if (err) return callback(err);
 
         return callback(null);
       }
     ))
-    .catch(err => {
-      return callback(err);
-    });
-};
-
-ImageSchema.statics.findImageByUrlAndSetAsUsed = function (url, callback) {
-  const Image = this;
-
-  Image.findImageByUrl(url, (err, image) => {
-    if (err) return callback(err);
-
-    if (image.is_used) return callback(null);
-
-    Image.findByIdAndUpdate(mongoose.Types.ObjectId(image._id.toString()), {$set: {
-      is_used: true
-    }}, err => {
-      if (err) return callback('database_error');
-
-      return callback(null);
-    });
-  });
-};
-
-ImageSchema.statics.copyImageFromURLToDifferentName = function (old_url, new_name, callback) {
-  const Image = this;
-
-  Image.findImageByUrl(old_url, (err, image) => {
-    if (err) return callback(err);
-
-    copyImage({
-      url: image.url,
-      original_name: toURLString(new_name)
-    }, (err, url) => {
-      console.log(url);
-      if (err) return callback('aws_upload_error');
-
-      Image.findImageByUrl(url, (err, duplicate) => {
-        if (err && err != 'document_not_found')
-          return callback(err);
-
-        if (duplicate) return callback(null, duplicate.url);
-
-        const newImageData = {
-          name: new_name,
-          url,
-          width: image.width,
-          height: image.height,
-          is_used: true
-        };
-
-        const newImage = new Image(newImageData);
-
-        newImage.save((err, image) => {
-          if (err) return callback('database_error');
-
-          return callback(null, image.url);
-        });
-      });
-    });
-  });
+    .catch(err =>
+      callback(err)
+    );
 };
 
 module.exports = mongoose.model('Image', ImageSchema);
