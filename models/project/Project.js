@@ -283,38 +283,45 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
       file_name: file.filename,
       name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
       resize_parameters: [{
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT
+        fit: 'cover',
+        width: IMAGE_WIDTH * 1/4,
+        height: IMAGE_HEIGHT * 1/4
       }, {
         fit: 'cover',
         width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT * 2
+        height: IMAGE_HEIGHT * 3/4
       }, {
         fit: 'contain',
-        width: IMAGE_WIDTH * 3,
+        width: IMAGE_WIDTH * 2/3,
         height: IMAGE_HEIGHT
       }],
-      is_used: true
-    }, (err, image) => {
+      is_used: true,
+    }, (err, url_list) => {
       if (err) return callback(err);
 
       Project.findByIdAndUpdate(project._id, { $set: {
-        image: image.url_list
+        image: url_list
       }}, err => {
         if (err) return callback(err);
-
-        deleteFile(file, err => { // Yunus'a sor
+        console.log(url_list, 3);
+        deleteFile(file, err => {
           if (err) return callback(err);
 
-          if (!project.image || project.image.split('/')[project.image.split('/').length - 1] == url.split('/')[url.split('/').length - 1])
-            return callback(null, url);
-
-          Image.findImageByUrlAndDelete(image._id, err => {
-            if (err) return callback(err);
-
-            return callback(null, image.url_list);
-          });
+          return callback(null, url_list);
         });
+
+        // deleteFile(file, err => { // Yunus'a sor
+        //   if (err) return callback(err);
+
+        //   if (!project.image || project.image.split('/')[project.image.split('/').length - 1] == url.split('/')[url.split('/').length - 1])
+        //     return callback(null, url);
+
+        //   Image.findImageByUrlAndDelete(image._id, err => {
+        //     if (err) return callback(err);
+
+        //     return callback(null, image.url_list);
+        //   });
+        // });
       });
     });
   });

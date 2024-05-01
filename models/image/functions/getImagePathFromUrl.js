@@ -1,12 +1,19 @@
 const validator = require('validator');
 
 /**
- * @param {string} url
- * @returns {string}
+ * @callback getImagePathFromURLCallback
+ * @param {string} err
+ * @param {string} imagePath
  */
-module.exports = url => {
-  if (!url || !url.length || !validator.isURL(url))
-    return;
 
-  return url.split('/')[url.split('/').length - 1];
+/**
+ * @param {string} url
+ * @param {getImagePathFromURLCallback} callback
+ */
+module.exports = (url, callback) => {
+  if (!url || !url.length || !validator.isURL(url))
+    return callback('bad_request');
+
+  const imagePath = url.split('/')[url.split('/').length - 1];
+  return callback(null, imagePath);
 };

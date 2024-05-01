@@ -8,6 +8,7 @@ const generateRandomImageHEX = require('./functions/generateRandomImageHEX');
 const renameImages = require('./functions/renameImages');
 const toImageURLString = require('./functions/toImageURLString');
 const uploadImages = require('./functions/uploadImages');
+const resize = require('sharp/lib/resize');
 
 const DEFAULT_FIT_PARAMETER = 'cover';
 const DUPLICATED_UNIQUE_FIELD_ERROR_CODE = 11000;
@@ -40,7 +41,6 @@ const ImageSchema = new Schema({
   // },
   expiration_date: {
     type: Number,
-    required: true,
     default: null
   }
 });
@@ -54,7 +54,7 @@ ImageSchema.statics.createImage = function (data, callback) {
   if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.trim() || data.file_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
     return callback('bad_request');
 
-  if (data.name && typeof data.name != 'string')
+  if (data.name && typeof data.name == 'string')
     data.name = toImageURLString(data.name);
   else
     data.name = generateRandomImageHEX();
@@ -62,7 +62,7 @@ ImageSchema.statics.createImage = function (data, callback) {
   if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
     return callback('bad_request');
 
-  for (resize_parameter in data.resize_parameters) {
+  for (let resize_parameter of data.resize_parameters) {
     if (!resize_parameter.fit)
       resize_parameter.fit = DEFAULT_FIT_PARAMETER;
 
@@ -91,22 +91,75 @@ ImageSchema.statics.createImage = function (data, callback) {
 
     newImage.save((err, image) => {
       if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE) {
-        Image.findOneAndUpdate({
+        Image.findOne({
           name: data.name
-        }, { $set: {
-          url_list: image.url_list
-        }}, { new: true }, (err, image) => {
+        }, (err, image) => {
           if (err) return callback('database_error');
 
-          Image.findExpiredImagesAndDelete(err => {
-            if (err) console.log(err);
+          if (!image) return callback('document_not_found');
 
-            formatImage(image, (err, image) => {
+          const imagesToBeDeleted = [];
+          const imagesToBeKept = [];
+
+          for (let i = 0; i < image.url_list.length; i++) {
+            let found = false;
+            for (let j = 0; j < url_list.length; j++) {
+              if (image.url_list[i].url.split('/')[image.url_list[i].url.split('/').length - 1] == url_list[j].url.split('/')[url_list[j].url.split('/').length - 1]) {
+                imagesToBeKept.push(image.url_list[i]);
+                found = true;
+                return;
+              };
+            };
+
+            if (!found)
+              imagesToBeDeleted.push(image.url_list[i]);
+          };
+
+          for (let i = 0; i < url_list.length; i++) {
+            let found = false;
+            for (let j = 0; j < image.url_list.length; j++) {
+              if (url_list[i].url.split('/')[url_list[i].url.split('/').length - 1] == image.url_list[j].url.split('/')[image.url_list[j].url.split('/').length - 1]) {
+                found = true;
+                return;
+              };
+            };
+
+            if (!found)
+              imagesToBeKept.push(url_list[i]);
+          };
+
+          if (!imagesToBeDeleted.length) {
+            Image.findOneAndUpdate({
+              name: data.name
+            }, { $set: {
+              url_list: imagesToBeKept
+            }}, { new: true }, (err, image) => {
+              if (err) return callback('database_error');
+
+              Image.findExpiredImagesAndDelete(err => {
+                if (err) return callback(err);
+
+                return callback(null, image.url_list);
+              });
+            })
+          } else {
+            deleteImages(imagesToBeDeleted, err => {
               if (err) return callback(err);
+              Image.findOneAndUpdate({
+                name: data.name
+              }, { $set: {
+                url_list: imagesToBeKept
+              }}, { new: true }, (err, image) => {
+                if (err) return callback('database_error');
 
-              return callback(null, image);
+                Image.findExpiredImagesAndDelete(err => {
+                  if (err) return callback(err);
+
+                  return callback(null, image.url_list);
+                });
+              });
             });
-          });
+          };
         });
       } else if (err) {
         return callback('database_error');
@@ -114,11 +167,7 @@ ImageSchema.statics.createImage = function (data, callback) {
         Image.findExpiredImagesAndDelete(err => {
           if (err) console.log(err);
 
-          formatImage(image, (err, image) => {
-            if (err) return callback(err);
-
-            return callback(null, image);
-          });
+          return callback(null, image.url_list);
         });
       };
     });

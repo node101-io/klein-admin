@@ -3,6 +3,7 @@ const validator = require('validator');
 
 const generateImagePath = require('./generateImagePath');
 const getImagePathFromUrl = require('./getImagePathFromUrl');
+const { get } = require('http');
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 const MAX_IMAGE_SIZE = 1e4;
@@ -60,27 +61,35 @@ module.exports = (data, callback) => {
       if (!urlData.width && !urlData.height)
         return next('bad_request');
 
-      s3.copyObject({
-        Bucket: BUCKET_NAME,
-        CopySource: BUCKET_NAME + '/' + getImagePathFromUrl(urlData.url),
-        Key: generateImagePath({
-          name: data.name,
-          width: urlData.width,
-          height: urlData.height
-        })
-      }, (err, image) => {
+      generateImagePath({
+        name: data.name,
+        width: urlData.width,
+        height: urlData.height
+      }, (err, newImagePath) => {
         if (err) return next(err);
 
-        s3.deleteObject({
-          Bucket: BUCKET_NAME,
-          Key: getImagePathFromUrl(urlData.url)
-        }, err => {
+        getImagePathFromUrl(urlData.url, (err, oldImagePath) => {
           if (err) return next(err);
 
-          next(null, {
-            url: image.Location,
-            width: urlData.width,
-            height: urlData.height
+          s3.copyObject({
+            Bucket: BUCKET_NAME,
+            CopySource: BUCKET_NAME + '/' + oldImagePath,
+            Key: newImagePath
+          }, (err, image) => {
+            if (err) return next(err);
+
+            s3.deleteObject({
+              Bucket: BUCKET_NAME,
+              Key: oldImagePath
+            }, err => {
+              if (err) return next(err);
+
+              next(null, {
+                url: image.Location,
+                width: urlData.width,
+                height: urlData.height
+              });
+            });
           });
         });
       });

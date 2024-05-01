@@ -3,6 +3,7 @@ const async = require('async');
 const validator = require('validator');
 
 const getImagePathFromURL = require('./getImagePathFromUrl');
+const { get } = require('mongoose');
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
@@ -12,16 +13,21 @@ const s3 = new AWS.S3({
 });
 
 /**
- * @callback deleteImagesCallback
- * @param {AWS.AWSError|Error|string} err
+ * @typedef {{
+ * url: string
+ * width?: number
+ * height?: number
+ * }[]} URLListArray
  */
 
 /**
- * @param {Array.<{
- *   url: string,
- *   width?: number,
- *   height?: number
- * }>} url_list
+ * @callback deleteImagesCallback
+ * @param {AWS.AWSError|Error|string} err
+ * @param {null} data
+ */
+
+/**
+ * @param {URLListArray} url_list
  * @param {deleteImagesCallback} callback
  */
 module.exports = (url_list, callback) => {
@@ -39,13 +45,17 @@ module.exports = (url_list, callback) => {
       if (!urlData.url || !urlData.url.length || !validator.isURL(urlData.url))
         return next('bad_request');
 
-      s3.deleteObject({
-        Bucket: BUCKET_NAME,
-        Key: getImagePathFromURL(urlData.url)
-      }, err => {
+      getImagePathFromURL(urlData.url, (err, imagePath) => {
         if (err) return next(err);
 
-        next(null);
+        s3.deleteObject({
+          Bucket: BUCKET_NAME,
+          Key: imagePath
+        }, err => {
+          if (err) return next(err);
+
+          next(null);
+        });
       });
     }, err => {
       if (err) return callback(err);

@@ -42,9 +42,9 @@ module.exports = (data, callback) => {
 
   const resizeParameters = data.resize_parameters.map(parameter => {
     return {
-      fit: parameter.fit,
-      width: parameter.width,
-      height: parameter.height
+      fit: parameter?.fit,
+      width: parameter?.width,
+      height: parameter?.height
     };
   });
 
@@ -70,29 +70,33 @@ module.exports = (data, callback) => {
         .webp()
         .toBuffer()
         .then(image => {
-          const uploadParams = {
-            Bucket: BUCKET_NAME,
-            Key: generateImagePath({
-              name: data.name,
-              width: resizeParameter.width,
-              height: resizeParameter.height
-            }),
-            Body: image,
-            ContentType: 'image/webp',
-            ACL: 'public-read'
-          };
-
-          s3.upload(uploadParams, (err, response) => {
+          generateImagePath({
+            name: data.name,
+            width: resizeParameter.width,
+            height: resizeParameter.height
+          }, (err, imagePath) => {
             if (err) return next(err);
 
-            next(null, {
-              url: response.Location,
-              width: resizeParameter.width,
-              height: resizeParameter.height
+            const uploadParams = {
+              Bucket: BUCKET_NAME,
+              Key: imagePath,
+              Body: image,
+              ContentType: 'image/webp',
+              ACL: 'public-read' // Change storing parameter - AWS
+            };
+
+            s3.upload(uploadParams, (err, response) => {
+              if (err) return next(err);
+
+              next(null, {
+                url: response.Location,
+                width: resizeParameter.width,
+                height: resizeParameter.height
+              });
             });
           });
         })
-        .catch(err => next('database_error'));
+        .catch(_ => next('database_error'));
     }, (err, url_list) => {
       if (err) return callback(err);
 
