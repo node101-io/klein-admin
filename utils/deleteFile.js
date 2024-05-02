@@ -1,10 +1,11 @@
 const fs = require('fs');
+const path = require('path');
 
 module.exports = (file, callback) => {
   if (!file || !file.filename)
     return callback('bad_request');
 
-  fs.unlink('./models/image/uploads/' + file.filename, err => {
+  fs.unlink(path.join(__dirname, '../models/image/uploads/' + file.filename), err => {
     if (err) return callback('fs_unlink_error');
 
     return callback(null);

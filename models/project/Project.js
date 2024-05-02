@@ -15,6 +15,7 @@ const getURLs = require('./functions/getURLs');
 const isProjectComplete = require('./functions/isProjectComplete');
 
 const DEFAULT_DOCUMENT_COUNT_PER_QUERY = 20;
+const DEFAULT_FIT_PARAMETER = 'cover';
 const DUPLICATED_UNIQUE_FIELD_ERROR_CODE = 11000;
 const IMAGE_HEIGHT = 200;
 const IMAGE_WIDTH = 200;
@@ -279,49 +280,49 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
 
     if (project.is_deleted) return callback('not_authenticated_request');
 
-    Image.createImage({
+    const imageData = {
       file_name: file.filename,
       name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
+      fit: DEFAULT_FIT_PARAMETER,
       resize_parameters: [{
-        fit: 'cover',
         width: IMAGE_WIDTH * 1/4,
         height: IMAGE_HEIGHT * 1/4
       }, {
-        fit: 'cover',
         width: IMAGE_WIDTH,
         height: IMAGE_HEIGHT * 3/4
       }, {
-        fit: 'contain',
         width: IMAGE_WIDTH * 2/3,
         height: IMAGE_HEIGHT
       }],
       is_used: true,
-    }, (err, url_list) => {
+      delete_uploaded_file: true
+    };
+
+    Image.createImage(imageData, (err, url_list) => {
       if (err) return callback(err);
 
       Project.findByIdAndUpdate(project._id, { $set: {
         image: url_list
       }}, err => {
         if (err) return callback(err);
-        console.log(url_list, 3);
-        deleteFile(file, err => {
-          if (err) return callback(err);
 
-          return callback(null, url_list);
-        });
+        if ('delete_uploaded_file' in imageData) {
+          if (!!imageData.delete_uploaded_file) {
+            deleteFile(file, err => {
+              if (err) return callback(err);
 
-        // deleteFile(file, err => { // Yunus'a sor
-        //   if (err) return callback(err);
+              return callback(null, url_list);
+            });
+          } else {
+            return callback(null, url_list);
+          };
+        } else {
+          deleteFile(file, err => {
+            if (err) return callback(err);
 
-        //   if (!project.image || project.image.split('/')[project.image.split('/').length - 1] == url.split('/')[url.split('/').length - 1])
-        //     return callback(null, url);
-
-        //   Image.findImageByUrlAndDelete(image._id, err => {
-        //     if (err) return callback(err);
-
-        //     return callback(null, image.url_list);
-        //   });
-        // });
+            return callback(null, url_list);
+          });
+        };
       });
     });
   });

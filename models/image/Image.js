@@ -5,10 +5,10 @@ const validator = require('validator');
 const deleteImages = require('./functions/deleteImages');
 const formatImage = require('./functions/formatImage');
 const generateRandomImageHEX = require('./functions/generateRandomImageHEX');
+const getImagePathFromURL = require('./functions/getImagePathFromUrl');
 const renameImages = require('./functions/renameImages');
 const toImageURLString = require('./functions/toImageURLString');
 const uploadImages = require('./functions/uploadImages');
-const resize = require('sharp/lib/resize');
 
 const DEFAULT_FIT_PARAMETER = 'cover';
 const DUPLICATED_UNIQUE_FIELD_ERROR_CODE = 11000;
@@ -35,10 +35,6 @@ const ImageSchema = new Schema({
     default: [],
     maxlength: MAX_DATABASE_ARRAY_FIELD_LENGTH
   },
-  // delete_uploaded_file: {
-  //   type: Boolean,
-  //   default: false
-  // },
   expiration_date: {
     type: Number,
     default: null
@@ -59,16 +55,16 @@ ImageSchema.statics.createImage = function (data, callback) {
   else
     data.name = generateRandomImageHEX();
 
+  if (!data.fit)
+    data.fit = DEFAULT_FIT_PARAMETER;
+
+  if (!FIT_PARAMETERS.includes(data.fit))
+    return callback('bad_request');
+
   if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
     return callback('bad_request');
 
   for (let resize_parameter of data.resize_parameters) {
-    if (!resize_parameter.fit)
-      resize_parameter.fit = DEFAULT_FIT_PARAMETER;
-
-    if (!FIT_PARAMETERS.includes(resize_parameter.fit))
-      return callback('bad_request');
-
     resize_parameter.width = (!resize_parameter.width || isNaN(parseInt(resize_parameter.width)) || parseInt(resize_parameter.width) <= 0 || parseInt(resize_parameter.width) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.width);
     resize_parameter.height = (!resize_parameter.height || isNaN(parseInt(resize_parameter.height)) || parseInt(resize_parameter.height) <= 0 || parseInt(resize_parameter.height) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.height);
 
@@ -101,32 +97,48 @@ ImageSchema.statics.createImage = function (data, callback) {
           const imagesToBeDeleted = [];
           const imagesToBeKept = [];
 
-          for (let i = 0; i < image.url_list.length; i++) {
+          image.url_list.forEach((existingImageURL) => {
             let found = false;
-            for (let j = 0; j < url_list.length; j++) {
-              if (image.url_list[i].url.split('/')[image.url_list[i].url.split('/').length - 1] == url_list[j].url.split('/')[url_list[j].url.split('/').length - 1]) {
-                imagesToBeKept.push(image.url_list[i]);
-                found = true;
-                return;
-              };
-            };
+            url_list.forEach((uploadedImageURL) => {
+              getImagePathFromURL(existingImageURL.url, (err, existingImagePath) => {
+                if (err) return callback(err);
+
+                getImagePathFromURL(uploadedImageURL.url, (err, uploadedImagePath) => {
+                  if (err) return callback(err);
+
+                  if (existingImagePath == uploadedImagePath) {
+                    imagesToBeKept.push(existingImageURL);
+                    found = true;
+                    return;
+                  };
+                });
+              });
+            });
 
             if (!found)
-              imagesToBeDeleted.push(image.url_list[i]);
-          };
+              imagesToBeDeleted.push(imageURL);
+          });
 
-          for (let i = 0; i < url_list.length; i++) {
+          url_list.forEach((uploadedImageURL) => {
             let found = false;
-            for (let j = 0; j < image.url_list.length; j++) {
-              if (url_list[i].url.split('/')[url_list[i].url.split('/').length - 1] == image.url_list[j].url.split('/')[image.url_list[j].url.split('/').length - 1]) {
-                found = true;
-                return;
-              };
-            };
+            image.url_list.forEach((existingImageURL) => {
+              getImagePathFromURL(uploadedImageURL.url, (err, uploadedImagePath) => {
+                if (err) return callback(err);
+
+                getImagePathFromURL(existingImageURL.url, (err, existingImagePath) => {
+                  if (err) return callback(err);
+
+                  if (uploadedImagePath == existingImagePath) {
+                    found = true;
+                    return;
+                  };
+                });
+              });
+            });
 
             if (!found)
-              imagesToBeKept.push(url_list[i]);
-          };
+              imagesToBeKept.push(dataURL);
+          });
 
           if (!imagesToBeDeleted.length) {
             Image.findOneAndUpdate({
@@ -141,7 +153,7 @@ ImageSchema.statics.createImage = function (data, callback) {
 
                 return callback(null, image.url_list);
               });
-            })
+            });
           } else {
             deleteImages(imagesToBeDeleted, err => {
               if (err) return callback(err);

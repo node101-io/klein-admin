@@ -8,9 +8,9 @@ window.addEventListener('load', () => {
         window.location = `/project/delete?search=${event.target.value.trim()}`;
       } else if (event.key == 'Enter') {
         window.location = '/project/delete';
-      }
+      };
     });
-  }
+  };
 
   document.addEventListener('click', event => {
     if (event.target.classList.contains('restore-each-project-button')) {

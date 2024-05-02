@@ -1,6 +1,7 @@
 const async = require('async');
 const AWS = require('aws-sdk');
 const fs = require('fs');
+const path = require('path');
 const sharp = require('sharp');
 
 const generateImagePath = require('./generateImagePath');
@@ -22,7 +23,7 @@ const s3 = new AWS.S3({
  */
 
 /**
- * @param {{ name: string, file_name: string, resize_parameters: Array.<{fit?: string, width?: number, height?: number}> }} data
+ * @param {{ name: string, file_name: string, fit: string, resize_parameters: Array.<{width?: number, height?: number}> }} data
  * @param {uploadImagesCallback} callback
  */
 module.exports = (data, callback) => {
@@ -35,14 +36,20 @@ module.exports = (data, callback) => {
   if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.length)
     return callback('bad_request');
 
+  if (!data.fit)
+    data.fit = DEFAULT_FIT_PARAMETER;
+
+  if (!FIT_PARAMETERS.includes(data.fit))
+    return callback('bad_request');
+
   if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
     return callback('bad_request');
 
-  const fileContent = fs.readFileSync('./models/image/uploads/' + data.file_name);
+  const fileContent = fs.readFileSync(path.join(__dirname, '../uploads/ ' + data.file_name));
 
   const resizeParameters = data.resize_parameters.map(parameter => {
     return {
-      fit: parameter?.fit,
+      fit: data.fit,
       width: parameter?.width,
       height: parameter?.height
     };
@@ -52,12 +59,6 @@ module.exports = (data, callback) => {
     resizeParameters.length,
     (time, next) => {
       const resizeParameter = resizeParameters[time];
-
-      if (!resizeParameter.fit)
-        resizeParameter.fit = DEFAULT_FIT_PARAMETER;
-
-      if (!FIT_PARAMETERS.includes(resizeParameter.fit))
-        return next('bad_request');
 
       resizeParameter.width = (!resizeParameter.width || isNaN(parseInt(resizeParameter.width)) || parseInt(resizeParameter.width) <= 0 || parseInt(resizeParameter.width) > MAX_IMAGE_SIZE) ? null : parseInt(resizeParameter.width);
       resizeParameter.height = (!resizeParameter.height || isNaN(parseInt(resizeParameter.height)) || parseInt(resizeParameter.height) <= 0 || parseInt(resizeParameter.height) > MAX_IMAGE_SIZE) ? null : parseInt(resizeParameter.height);
@@ -82,7 +83,7 @@ module.exports = (data, callback) => {
               Key: imagePath,
               Body: image,
               ContentType: 'image/webp',
-              ACL: 'public-read' // Change storing parameter - AWS
+              ACL: 'public-read'
             };
 
             s3.upload(uploadParams, (err, response) => {
