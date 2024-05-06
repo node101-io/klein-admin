@@ -147,3 +147,38 @@
 .general-each-item-first-button:hover, .general-each-item-second-button:hover, .general-each-item-third-button:hover {
   box-shadow: 0 0 3px var(--shadow-color);
 }
+
+.general-each-item-fourth-button-not-allowed {
+  background-color: var(--box-color);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--second-color);
+  height: 25px;
+  padding: 0 15px;
+  border: 1px solid var(--second-color);
+  margin-right: 10px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  outline: none;
+  cursor: not-allowed;
+  box-shadow: 0 0 2px var(--shadow-color);
+}
+.general-each-item-first-button-not-allowed {
+  background-color: var(--main-color);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--box-color);
+  height: 25px;
+  padding: 0 15px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  outline: none;
+  cursor: not-allowed;
+  box-shadow: 0 0 2px var(--shadow-color);
+}

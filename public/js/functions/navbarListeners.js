@@ -30,10 +30,33 @@ window.addEventListener('load', () => {
 
         return window.location = '/project/edit?id=' + res.id;
       });
-    }
+    };
+
+    if (event.target.classList.contains('each-navbar-group-link') && event.target.href.includes('/notification/create')) {
+      event.preventDefault();
+
+      createFormPopUp({
+        title: 'Create a New Notification',
+        url: '/notification/create',
+        method: 'POST',
+        description: 'You will be asked to complete notification details once you create it.',
+        inputs: [
+          {
+            name: 'title',
+            placeholder: 'Title of the notification'
+          }
+        ],
+        button: 'Create New Notification'
+      }, (error, res) => {
+        if (error) return alert(error);
+        if (!res) return;
+
+        return window.location = '/notification/edit?id=' + res.id;
+      });
+    };
 
     if (event.target.classList.contains('all-navbar-header-image') || event.target.classList.contains('all-navbar-header-image-icon')) {
       imageInput.click();
-    }
+    };
   });
 });

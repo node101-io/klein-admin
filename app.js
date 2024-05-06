@@ -37,7 +37,11 @@ if (cluster.isMaster) {
   const adminRouteController = require('./routes/adminRoute');
   const apiRouteController = require('./routes/apiRoute');
   const indexRouteController = require('./routes/indexRoute');
+  const notificationRouteController = require('./routes/notificationRoute')
   const projectRouteController = require('./routes/projectRoute');
+
+  const fromDateToHTMLDateInputString = require('./utils/fromDateToHTMLDateInputString');
+  const fromDateToHTMLTimeInputString = require('./utils/fromDateToHTMLTimeInputString');
 
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'pug');
@@ -84,6 +88,8 @@ if (cluster.isMaster) {
       req.body = {};
 
     res.locals.QUERY_LIMIT = QUERY_LIMIT;
+    res.locals.fromDateToHTMLDateInputString = fromDateToHTMLDateInputString;
+    res.locals.fromDateToHTMLTimeInputString = fromDateToHTMLTimeInputString;
     req.query.limit = QUERY_LIMIT;
 
     next();
@@ -92,6 +98,7 @@ if (cluster.isMaster) {
   app.use('/', indexRouteController);
   app.use('/admin', adminRouteController);
   app.use('/api', apiRouteController);
+  app.use('/notification', notificationRouteController);
   app.use('/project', projectRouteController);
 
   server.listen(PORT, () => {
