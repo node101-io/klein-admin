@@ -24,6 +24,9 @@ window.addEventListener('load', () => {
       const publishDate = document.getElementById('publish-date').value;
       const publishTime = document.getElementById('publish-time').value;
 
+      if (publishDate && !publishTime)
+        return error.innerHTML = 'Please enter a publish time for the notification.';
+
       const publishDateTime = new Date(`${publishDate}T${publishTime}`);
 
       if (!title || !title.trim().length)

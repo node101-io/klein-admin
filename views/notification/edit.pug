@@ -22,10 +22,10 @@ block main
         .general-create-input-grid-each-item-wrapper
         .general-create-input-grid-each-item-wrapper
           span.general-create-subtitle= __('Notification Publish Date')
-          input.general-input#publish-date(type='date' placeholder=__('Enter the publish date of the notification.') value=fromDateToHTMLDateInputString(notification.publish_date))
+          input.general-input#publish-date(type='date' value=fromDateToHTMLDateInputString(notification.publish_date))
         .general-create-input-grid-each-item-wrapper
           span.general-create-subtitle= __('Notification Publish Time')
-          input.general-input#publish-time(type='time' placeholder=__('Enter the publish time of the notification.') value=fromDateToHTMLTimeInputString(notification.publish_date))
+          input.general-input#publish-time(type='time' value=fromDateToHTMLTimeInputString(notification.publish_date))
       .general-create-button-wrapper
         span.general-create-error#update-error
         .general-create-button#update-button= __('Update')

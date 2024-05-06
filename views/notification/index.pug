@@ -27,22 +27,19 @@ block main
         span.general-page-info #{__('Showing')} #{notifications_limit} #{__('results per page.')}
     .general-items-wrapper
       each notification in notifications
-        .general-each-item-wrapper(id=notification._id)
+        .general-each-item-wrapper(id=notification._id data-publish-date=notification.publish_date)
           .general-each-item-title-wrapper
             span.general-each-item-title= notification.title
-            span.general-each-item-subtitle(style=(notification.is_completed ? '' : 'color: var(--warning-color)')) #{notification.is_completed ? '' : `(${__('not completed')})`}
+            if !notification.is_completed
+              span.general-each-item-subtitle(style='color: var(--warning-color)')= `(${__('not completed')})`
+            else if notification.message == notification.translations.tr.message
+              span.general-each-item-subtitle(style='color: var(--third-color)')= __('(missing translations)')
           .general-each-item-buttons-wrapper
             if notification.is_completed
+              a.general-each-item-fourth-button.publish-each-notification-button#publish-notification-now-button=__('Publish Now!')
               if notification.will_be_published
-                if new Date(notification.publish_date) > new Date()
-                  a.general-each-item-fourth-button.publish-each-notification-button=__('Publish Now!')
-                  span.general-each-item-fourth-button-not-allowed=__('Will be published at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
-                //- not expected to happen but just in case
-                else
-                  a.general-each-item-fourth-button-not-allowed=__('Publish Now!')
-                  span.general-each-item-fourth-button-not-allowed=__('Will be published at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
-              else
-                a.general-each-item-fourth-button.publish-each-notification-button=__('Publish Now!')
-                span.general-each-item-fourth-button.publish-each-notification-button=__('Publish at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
+                span.general-each-item-fourth-button-not-allowed=__('Will be published at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
+              else if notification.publish_date
+                span.general-each-item-fourth-button.publish-each-notification-button#publish-notification-later-button=__('Publish at: ') + new Date(notification.publish_date).toDateString() + ' ' + new Date(notification.publish_date).toLocaleTimeString()
             .general-each-item-second-button.delete-each-notification-button(style='margin-left: auto')= __('Delete')
             a.general-each-item-first-button(href='/notification/edit?id=' + notification._id)= __('Edit & Translate')
