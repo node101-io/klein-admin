@@ -35,6 +35,9 @@ window.addEventListener('load', () => {
       if (!message || !message.trim().length)
         return error.innerHTML = 'Please enter a message for the notification.';
 
+      if (publishDateTime < Date.now())
+        return error.innerHTML = 'Please enter a future date for the notification.';
+
       serverRequest('/notification/edit?id=' + notification._id, 'POST', {
         title,
         message,

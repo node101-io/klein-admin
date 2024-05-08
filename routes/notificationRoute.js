@@ -15,6 +15,7 @@ const deletePostController = require('../controllers/notification/delete/post')
 const editPostController = require('../controllers/notification/edit/post');
 const publishPostController = require('../controllers/notification/publish/post');
 const restorePostController = require('../controllers/notification/restore/post');
+const schedulePostController = require('../controllers/notification/schedule/post');
 const translationPostController = require('../controllers/notification/translate/post');
 
 router.get(
@@ -71,6 +72,12 @@ router.post(
     isSystemAdmin,
     createNavbarData,
     restorePostController
+);
+router.post(
+  '/schedule',
+    isSystemAdmin,
+    createNavbarData,
+    schedulePostController
 );
 router.post(
   '/translate',

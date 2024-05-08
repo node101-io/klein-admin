@@ -31,4 +31,5 @@ block main
           .general-each-item-title-wrapper
             span.general-each-item-title= notification.title
           .general-each-item-buttons-wrapper
-            .general-each-item-first-button-not-allowed.restore-each-notification-button= __('Published at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
+            - console.log(notification.publish_date)
+            .general-each-item-first-button-not-allowed.restore-each-notification-button= __('Published: ') + formatDate(notification.publish_date)

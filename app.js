@@ -42,6 +42,7 @@ if (cluster.isMaster) {
 
   const fromDateToHTMLDateInputString = require('./utils/fromDateToHTMLDateInputString');
   const fromDateToHTMLTimeInputString = require('./utils/fromDateToHTMLTimeInputString');
+  const formatDate = require('./utils/formatDate');
 
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'pug');
@@ -90,6 +91,7 @@ if (cluster.isMaster) {
     res.locals.QUERY_LIMIT = QUERY_LIMIT;
     res.locals.fromDateToHTMLDateInputString = fromDateToHTMLDateInputString;
     res.locals.fromDateToHTMLTimeInputString = fromDateToHTMLTimeInputString;
+    res.locals.formatDate = formatDate;
     req.query.limit = QUERY_LIMIT;
 
     next();

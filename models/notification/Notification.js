@@ -140,9 +140,6 @@ NotificationSchema.statics.findNotificationById = function (id, callback) {
 NotificationSchema.statics.findNotificationByIdAndFormat = function (id, callback) {
   const Notification = this;
 
-  if (!id || !validator.isMongoId(id.toString()))
-    return callback('bad_request');
-
   Notification.findNotificationById(id, (err, notification) => {
     if (err) return callback(err);
 
@@ -156,9 +153,6 @@ NotificationSchema.statics.findNotificationByIdAndFormat = function (id, callbac
 
 NotificationSchema.statics.findNotificationByIdAndFormatByLanguage = function (id, language, callback) {
   const Notification = this;
-
-  if (!id || !validator.isMongoId(id.toString()))
-    return callback('bad_request');
 
   if (!language || !validator.isISO31661Alpha2(language.toString()))
     return callback('bad_request');
@@ -180,133 +174,125 @@ NotificationSchema.statics.findNotificationByIdAndFormatByLanguage = function (i
 NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, callback) {
   const Notification = this;
 
-  if (!id || !validator.isMongoId(id.toString()))
+  if (!data || typeof data != 'object')
+    return callback('bad_request');
+
+  const updateData = {};
+
+  if (data.title && typeof data.title == 'string' && data.title.trim() && data.title.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.title = data.title.trim();
+
+  if (data.message && typeof data.message == 'string' && data.message.trim() && data.message.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.message = data.message.trim();
+
+  if (data.publish_date && typeof data.publish_date == 'string' && !isNaN(new Date(data.publish_date)))
+    updateData.publish_date = new Date(data.publish_date);
+
+  if (!Object.keys(updateData).length)
     return callback('bad_request');
 
   Notification.findNotificationById(id, (err, notification) => {
     if (err) return callback(err);
     if (notification.is_deleted) return callback('not_authenticated_request');
 
-    if (!data || typeof data != 'object')
-      return callback('bad_request');
+    if (new Date(notification.publish_date) != new Date(updateData.publish_date)) {
+      updateData.will_be_published = false;
 
-    const updateData = {};
+      Notification.findByIdAndUpdate(notification._id, { $set:
+        updateData
+      }, { new: true }, (err, notification) => {
+        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+          return callback('duplicated_unique_field');
 
-    if (data.title && typeof data.title == 'string' && data.title.trim() && data.title.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
-      updateData.title = data.title.trim();
+        if (err) return callback('database_error');
 
-    if (data.message && typeof data.message == 'string' && data.message.trim() && data.message.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
-      updateData.message = data.message.trim();
+        notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
 
-    if (data.publish_date && typeof data.publish_date == 'string' && !isNaN(new Date(data.publish_date)))
-      updateData.publish_date = new Date(data.publish_date);
-
-    if (!Object.keys(updateData).length)
-      return callback('bad_request');
-
-    // publish ikiye bölünecek
-    // şu anki tarihten daha eskiye update olmasın
-    // update'i düzgün yap!!!!
-
-    Notification.findByIdAndUpdate(notification._id, { $set:
-      updateData
-    }, { new: false }, (err, notification) => {
-      if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-        return callback('duplicated_unique_field');
-
-      if (err) return callback('database_error');
-
-      if (new Date(notification.publish_date) > new Date(updateData.publish_date)) {
         Notification.findByIdAndUpdate(notification._id, { $set: {
-          will_be_published: false
+          translations: notification.translations
         }}, { new: true }, (err, notification) => {
           if (err) return callback('database_error');
 
-          notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
+          const searchTitle = new Set();
+          const searchMessage = new Set();
+
+          notification.title.split(' ').forEach(word => searchTitle.add(word));
+          notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
+
+          notification.message.split(' ').forEach(word => searchMessage.add(word));
+          notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
 
           Notification.findByIdAndUpdate(notification._id, { $set: {
-            translations: notification.translations
-          }}, { new: true }, (err, notification) => {
+            search_title: Array.from(searchTitle).join(' '),
+            search_message: Array.from(searchMessage).join(' ')
+          }}, { new: true }, err => {
             if (err) return callback('database_error');
 
-            const searchTitle = new Set();
-            const searchMessage = new Set();
-
-            notification.title.split(' ').forEach(word => searchTitle.add(word));
-            notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
-
-            notification.message.split(' ').forEach(word => searchMessage.add(word));
-            notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
-
-            Notification.findByIdAndUpdate(notification._id, { $set: {
-              search_title: Array.from(searchTitle).join(' '),
-              search_message: Array.from(searchMessage).join(' ')
-            }}, { new: true }, err => {
-              if (err) return callback('database_error');
-
-              Notification.collection
-                .createIndex(
-                  { search_title: 'text', search_message: 'text' },
-                  { weights: {
-                    search_title: 10,
-                    search_message: 1
-                  }}
-                )
-                .then(() => callback(null))
-                .catch(_ => callback('index_error'));
-            });
+            Notification.collection
+              .createIndex(
+                { search_title: 'text', search_message: 'text' },
+                { weights: {
+                  search_title: 10,
+                  search_message: 1
+                }}
+              )
+              .then(() => callback(null))
+              .catch(_ => callback('index_error'));
           });
         });
-      } else {
-        Notification.findById(notification._id, (err, notification) => {
+      });
+    } else if (new Date(notification.publish_date) == new Date(updateData.publish_date)) {
+      Notification.findByIdAndUpdate(notification._id, { $set:
+        updateData
+      }, { new: true }, (err, notification) => {
+        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+          return callback('duplicated_unique_field');
+
+        if (err) return callback('database_error');
+
+        notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
+
+        Notification.findByIdAndUpdate(notification._id, { $set: {
+          translations: notification.translations
+        }}, { new: true }, (err, notification) => {
           if (err) return callback('database_error');
 
-          notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
+          const searchTitle = new Set();
+          const searchMessage = new Set();
+
+          notification.title.split(' ').forEach(word => searchTitle.add(word));
+          notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
+
+          notification.message.split(' ').forEach(word => searchMessage.add(word));
+          notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
 
           Notification.findByIdAndUpdate(notification._id, { $set: {
-            translations: notification.translations
-          }}, { new: true }, (err, notification) => {
+            search_title: Array.from(searchTitle).join(' '),
+            search_message: Array.from(searchMessage).join(' ')
+          }}, { new: true }, err => {
             if (err) return callback('database_error');
 
-            const searchTitle = new Set();
-            const searchMessage = new Set();
-
-            notification.title.split(' ').forEach(word => searchTitle.add(word));
-            notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
-
-            notification.message.split(' ').forEach(word => searchMessage.add(word));
-            notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
-
-            Notification.findByIdAndUpdate(notification._id, { $set: {
-              search_title: Array.from(searchTitle).join(' '),
-              search_message: Array.from(searchMessage).join(' ')
-            }}, { new: true }, err => {
-              if (err) return callback('database_error');
-
-              Notification.collection
-                .createIndex(
-                  { search_title: 'text', search_message: 'text' },
-                  { weights: {
-                    search_title: 10,
-                    search_message: 1
-                  }}
-                )
-                .then(() => callback(null))
-                .catch(_ => callback('index_error'));
-            });
+            Notification.collection
+              .createIndex(
+                { search_title: 'text', search_message: 'text' },
+                { weights: {
+                  search_title: 10,
+                  search_message: 1
+                }}
+              )
+              .then(() => callback(null))
+              .catch(_ => callback('index_error'));
           });
         });
-      };
-    });
+      });
+    } else {
+      return callback('bad_request');
+    };
   });
 };
 
 NotificationSchema.statics.findNotificationByIdAndUpdateTranslations = function (id, data, callback) {
   const Notification = this;
-
-  console.log(id)
-  if (!id || !validator.isMongoId(id.toString()))
-    return callback('bad_request');
 
   if (!data || typeof data != 'object')
     return callback('bad_request');
@@ -471,68 +457,46 @@ NotificationSchema.statics.findNotificationCountByFilters = function (data, call
   };
 };
 
-NotificationSchema.statics.findNotificationByIdAndPublish = function (id, data, callback) {
+NotificationSchema.statics.findNotificationByIdAndPublish = function (id, callback) {
   const Notification = this;
-
-  if (!data || typeof data != 'object')
-    return callback('bad_request');
-
-  if (!data.publish_date || typeof data.publish_date != 'string' || isNaN(new Date(data.publish_date)))
-    return callback('bad_request');
 
   Notification.findNotificationById(id, (err, notification) => {
     if (err) return callback(err);
     if (notification.is_deleted) return callback(null);
     if (notification.is_published) return callback(null);
 
-    if (new Date(data.publish_date) == Date.now()) {
-      Notification.findByIdAndUpdate(notification._id, { $set: {
-        publish_date: new Date(data.publish_date),
-        is_published: true,
-        will_be_published: false
-      }}, err => {
-        if (err) return callback('database_error');
+    Notification.findByIdAndUpdate(notification._id, { $set: {
+      publish_date: Date.now(),
+      is_published: true,
+      will_be_published: false
+    }}, err => {
+      if (err) return callback('database_error');
 
-        return callback(null);
-      });
-    } else if (new Date(data.publish_date) > new Date()) {
-      Notification.findByIdAndUpdate(notification._id, { $set: {
-        publish_date: new Date(data.publish_date),
-        will_be_published: true
-      }}, err => {
-        if (err) return callback('database_error');
-
-        return callback(null);
-      });
-    } else {
       return callback(null);
-    };
+    });
   });
 };
 
-// NotificationSchema.statics.findNotificationByIdAndPublish = function (id, callback) {
-//   const Notification = this;
+NotificationSchema.statics.findNotificationByIdAndSchedule = function (id, callback) {
+  const Notification = this;
 
-//   Notification.findNotificationById(id, (err, notification) => {
-//     if (err) return callback(err);
-//     if (notification.is_deleted) return callback(null);
-//     if (notification.is_published) return callback(null);
+  Notification.findNotificationById(id, (err, notification) => {
+    if (err) return callback(err);
+    if (notification.is_deleted) return callback(null);
+    if (notification.is_published) return callback(null);
 
-//     Notification.findByIdAndUpdate(notification._id, { $set: {
-//       will_be_published: true
-//     }}, err => {
-//       if (err) return callback('database_error');
+    Notification.findByIdAndUpdate(notification._id, { $set: {
+      will_be_published: true
+    }}, err => {
+      if (err) return callback('database_error');
 
-//       return callback(null);
-//     });
-//   });
-// };
+      return callback(null);
+    });
+  });
+};
 
 NotificationSchema.statics.findNotificationByIdAndDelete = function (id, callback) {
   const Notification = this;
-
-  if (!id || !validator.isMongoId(id.toString()))
-    return callback('bad_request');
 
   Notification.findNotificationById(id, (err, notification) => {
     if (err) return callback(err);
@@ -550,9 +514,6 @@ NotificationSchema.statics.findNotificationByIdAndDelete = function (id, callbac
 
 NotificationSchema.statics.findNotificationByIdAndRestore = function (id, callback) {
   const Notification = this;
-
-  if (!id || !validator.isMongoId(id.toString()))
-    return callback('bad_request');
 
   Notification.findNotificationById(id, (err, notification) => {
     if (err) return callback(err);

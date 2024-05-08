@@ -38,8 +38,8 @@ block main
             if notification.is_completed
               a.general-each-item-fourth-button.publish-each-notification-button#publish-notification-now-button=__('Publish Now!')
               if notification.will_be_published
-                span.general-each-item-fourth-button-not-allowed=__('Will be published at: ') + fromDateToHTMLDateInputString(notification.publish_date) + ' ' + fromDateToHTMLTimeInputString(notification.publish_date)
+                span.general-each-item-fourth-button-not-allowed=__('Will be published: ') + formatDate(notification.publish_date)
               else if notification.publish_date
-                span.general-each-item-fourth-button.publish-each-notification-button#publish-notification-later-button=__('Publish at: ') + new Date(notification.publish_date).toDateString() + ' ' + new Date(notification.publish_date).toLocaleTimeString()
+                span.general-each-item-fourth-button.publish-each-notification-button#publish-notification-later-button=__('Publish: ') + formatDate(notification.publish_date)
             .general-each-item-second-button.delete-each-notification-button(style='margin-left: auto')= __('Delete')
             a.general-each-item-first-button(href='/notification/edit?id=' + notification._id)= __('Edit & Translate')
