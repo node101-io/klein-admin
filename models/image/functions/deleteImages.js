@@ -32,7 +32,7 @@ const s3 = new AWS.S3({
  */
 module.exports = (url_list, callback) => {
   if (!url_list || !Array.isArray(url_list) || !url_list.length)
-    return callback('bad_request');
+    return callback(null);
 
   async.times(
     url_list.length,
