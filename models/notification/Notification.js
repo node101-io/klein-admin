@@ -195,99 +195,51 @@ NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, c
     if (err) return callback(err);
     if (notification.is_deleted) return callback('not_authenticated_request');
 
-    if (new Date(notification.publish_date) != new Date(updateData.publish_date)) {
-      updateData.will_be_published = false;
+    updateData.will_be_published = (new Date(notification.publish_date).getTime() != new Date(updateData.publish_date).getTime()) ? false : notification.will_be_published;
 
-      Notification.findByIdAndUpdate(notification._id, { $set:
-        updateData
-      }, { new: true }, (err, notification) => {
-        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-          return callback('duplicated_unique_field');
+    Notification.findByIdAndUpdate(notification._id, { $set:
+      updateData
+    }, { new: true }, (err, notification) => {
+      if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+        return callback('duplicated_unique_field');
 
+      if (err) return callback('database_error');
+
+      notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
+
+      Notification.findByIdAndUpdate(notification._id, { $set: {
+        translations: notification.translations
+      }}, { new: true }, (err, notification) => {
         if (err) return callback('database_error');
 
-        notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
+        const searchTitle = new Set();
+        const searchMessage = new Set();
+
+        notification.title.split(' ').forEach(word => searchTitle.add(word));
+        notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
+
+        notification.message.split(' ').forEach(word => searchMessage.add(word));
+        notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
 
         Notification.findByIdAndUpdate(notification._id, { $set: {
-          translations: notification.translations
-        }}, { new: true }, (err, notification) => {
+          search_title: Array.from(searchTitle).join(' '),
+          search_message: Array.from(searchMessage).join(' ')
+        }}, { new: true }, err => {
           if (err) return callback('database_error');
 
-          const searchTitle = new Set();
-          const searchMessage = new Set();
-
-          notification.title.split(' ').forEach(word => searchTitle.add(word));
-          notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
-
-          notification.message.split(' ').forEach(word => searchMessage.add(word));
-          notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
-
-          Notification.findByIdAndUpdate(notification._id, { $set: {
-            search_title: Array.from(searchTitle).join(' '),
-            search_message: Array.from(searchMessage).join(' ')
-          }}, { new: true }, err => {
-            if (err) return callback('database_error');
-
-            Notification.collection
-              .createIndex(
-                { search_title: 'text', search_message: 'text' },
-                { weights: {
-                  search_title: 10,
-                  search_message: 1
-                }}
-              )
-              .then(() => callback(null))
-              .catch(_ => callback('index_error'));
-          });
+          Notification.collection
+            .createIndex(
+              { search_title: 'text', search_message: 'text' },
+              { weights: {
+                search_title: 10,
+                search_message: 1
+              }}
+            )
+            .then(() => callback(null))
+            .catch(_ => callback('index_error'));
         });
       });
-    } else if (new Date(notification.publish_date) == new Date(updateData.publish_date)) {
-      Notification.findByIdAndUpdate(notification._id, { $set:
-        updateData
-      }, { new: true }, (err, notification) => {
-        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-          return callback('duplicated_unique_field');
-
-        if (err) return callback('database_error');
-
-        notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
-
-        Notification.findByIdAndUpdate(notification._id, { $set: {
-          translations: notification.translations
-        }}, { new: true }, (err, notification) => {
-          if (err) return callback('database_error');
-
-          const searchTitle = new Set();
-          const searchMessage = new Set();
-
-          notification.title.split(' ').forEach(word => searchTitle.add(word));
-          notification.translations.tr.title.split(' ').forEach(word => searchTitle.add(word));
-
-          notification.message.split(' ').forEach(word => searchMessage.add(word));
-          notification.translations.tr.message.split(' ').forEach(word => searchMessage.add(word));
-
-          Notification.findByIdAndUpdate(notification._id, { $set: {
-            search_title: Array.from(searchTitle).join(' '),
-            search_message: Array.from(searchMessage).join(' ')
-          }}, { new: true }, err => {
-            if (err) return callback('database_error');
-
-            Notification.collection
-              .createIndex(
-                { search_title: 'text', search_message: 'text' },
-                { weights: {
-                  search_title: 10,
-                  search_message: 1
-                }}
-              )
-              .then(() => callback(null))
-              .catch(_ => callback('index_error'));
-          });
-        });
-      });
-    } else {
-      return callback('bad_request');
-    };
+    });
   });
 };
 

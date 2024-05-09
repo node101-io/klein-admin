@@ -45,6 +45,11 @@
   font-size: 13px;
   margin-left: 5px;
 }
+.general-each-item-message {
+  color: var(--text-color);
+  font-size: 14px;
+  margin-right: auto;
+}
 
 .general-each-item-buttons-wrapper {
   display: flex;
