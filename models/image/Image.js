@@ -110,13 +110,10 @@ ImageSchema.statics.createImage = function (data, callback) {
             });
           };
 
-          const pathsToBeKept = uploadedImagePaths.filter(uploadedImagePath => existingImagePaths.includes(uploadedImagePath));
-          pathsToBeKept.push(...uploadedImagePaths.filter(uploadedImagePath => !existingImagePaths.includes(uploadedImagePath)));
-
           const pathsToBeDeleted = existingImagePaths.filter(existingImagePath => !uploadedImagePaths.includes(existingImagePath));
 
-          for (let i = 0; i < pathsToBeKept.length; i++) {
-            const imageIndex = uploadedImagePaths.indexOf(pathsToBeKept[i]);
+          for (let i = 0; i < uploadedImagePaths.length; i++) {
+            const imageIndex = uploadedImagePaths.indexOf(uploadedImagePaths[i]);
 
             imagesToBeKept.push(url_list[imageIndex]);
           };
