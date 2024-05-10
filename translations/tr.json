@@ -187,5 +187,9 @@
 	"(missing translations)": "(missing translations)",
 	"Will be published: ": "Will be published: ",
 	"Published: ": "Published: ",
-	"Publish: ": "Publish: "
+	"Publish: ": "Publish: ",
+	"Will be published on ": "Will be published on ",
+	"Publish: on ": "Publish: on ",
+	"Publish on ": "Publish on ",
+	"Published on ": "Published on "
 }

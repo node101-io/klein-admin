@@ -195,7 +195,8 @@ NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, c
     if (err) return callback(err);
     if (notification.is_deleted) return callback('not_authenticated_request');
 
-    updateData.will_be_published = (new Date(notification.publish_date).getTime() != new Date(updateData.publish_date).getTime()) ? false : notification.will_be_published;
+    if (new Date(notification.publish_date).getTime() != new Date(updateData.publish_date).getTime())
+      updateData.will_be_published = false;
 
     Notification.findByIdAndUpdate(notification._id, { $set:
       updateData
