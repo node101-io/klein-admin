@@ -9,7 +9,6 @@ module.exports = (notification, callback) => {
     publish_date: notification.publish_date,
     translations: notification.translations,
     is_completed: notification.is_completed,
-    is_published: notification.is_published,
     will_be_published: notification.will_be_published
   });
 };

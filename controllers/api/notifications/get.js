@@ -1,30 +1,33 @@
 const Notification = require('../../../models/notification/Notification');
 
+const TEN_SECONDS_IN_MS = 10 * 1000;
+
 let lastRequestTime = 0;
 let lastRequestResponse = null;
 
 module.exports = (req, res) => {
-  // if (lastRequestTime > Date.now() - 10 * 1000)
-  //   return res.json(lastRequestResponse);
+  console.log(lastRequestTime, 'in')
+  if (lastRequestTime > Date.now() - TEN_SECONDS_IN_MS)
+    return res.json(lastRequestResponse);
+  console.log(lastRequestTime, 'out')
+  lastRequestTime = Date.now();
 
-  // lastRequestTime = Date.now();
+  const filters = {
+    is_deleted: false,
+    is_published: true
+  };
 
-  // filters {}
-  // is deleted ve is published
-
-  Notification.findNotificationsByFilters(filters, (err, notifications) => {
+  Notification.findNotificationsByFilters(filters, (err, data) => {
     if (err) return res.json({
+      success: false,
+      error: err
     });
 
-    // lastRequestResponse = notifications;
+    lastRequestResponse = {
+      success: true,
+      notifications: data.notifications
+    };
 
-    return res.json({
-      // success: true,
-      // Notifications: data.Notifications,
-      // count,
-      // limit: data.limit, // 20 olsun
-      // page: data.page,
-      // search: data.search
-    });
+    return res.json(lastRequestResponse);
   });
 };

@@ -13,7 +13,6 @@ module.exports = (notification, language, callback) => {
     message: translation.message,
     publish_date: notification.publish_date,
     is_completed: notification.is_completed,
-    is_published: notification.is_published,
     will_be_published: notification.will_be_published
   });
 };
