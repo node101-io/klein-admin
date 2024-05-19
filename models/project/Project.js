@@ -50,7 +50,7 @@ const ProjectSchema = new Schema({
   },
   image: {
     type: Array,
-    default: []
+    default: null
   },
   properties: { // Properties of the project.
     type: Object,
@@ -156,7 +156,6 @@ ProjectSchema.statics.findProjectById = function (id, callback) {
 
   Project.findById(mongoose.Types.ObjectId(id.toString()), (err, project) => {
     if (err) return callback('database_error');
-
     if (!project) return callback('document_not_found');
 
     const is_completed = isProjectComplete(project);
@@ -471,16 +470,14 @@ ProjectSchema.statics.findProjectCountByFilters = function (data, callback) {
 
   if (!data.search || typeof data.search != 'string' || !data.search.trim().length) {
     Project
-      .find(filters)
-      .countDocuments()
+      .countDocuments(filters)
       .then(count => callback(null, count))
       .catch(err => callback('database_error'));
   } else {
     filters.$text = { $search: data.search.trim() };
 
     Project
-      .find(filters)
-      .countDocuments()
+      .countDocuments(filters)
       .then(count => callback(null, count))
       .catch(err => callback('database_error'));
   };
