@@ -48,7 +48,7 @@ ImageSchema.statics.createImage = function (data, callback) {
   if (!data || typeof data != 'object')
     return callback('bad_request');
 
-  if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.trim() || data.file_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
+  if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.trim().length || data.file_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
     return callback('bad_request');
 
   if (data.name && typeof data.name == 'string')
@@ -199,7 +199,7 @@ ImageSchema.statics.findImageByIdAndUpdate = function (id, data, callback) {
 
   const updateData = {};
 
-  if (data.name && typeof data.name == 'string' && data.name.trim() && data.name.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+  if (data.name && typeof data.name == 'string' && data.name.trim().length && data.name.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
     updateData.name = toImageURLString(data.name);
 
   if (data.is_used)
@@ -258,7 +258,7 @@ ImageSchema.statics.findImageByIdAndRename = function (id, data, callback) {
   if (!data || typeof data != 'object')
     return callback('bad_request');
 
-  if (!data.name || typeof data.name != 'string' || !data.name.trim() || data.name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
+  if (!data.name || typeof data.name != 'string' || !data.name.trim().length || data.name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
     return callback('bad_request');
 
   Image.findImageByIdAndUpdate(id, { name: data.name }, (err, image) => {
