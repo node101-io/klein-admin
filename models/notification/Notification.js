@@ -179,10 +179,10 @@ NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, c
 
   const updateData = {};
 
-  if (data.title && typeof data.title == 'string' && data.title.trim() && data.title.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+  if (data.title && typeof data.title == 'string' && data.title.length && data.title.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
     updateData.title = data.title.trim();
 
-  if (data.message && typeof data.message == 'string' && data.message.trim() && data.message.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
+  if (data.message && typeof data.message == 'string' && data.message.trim().length && data.message.trim().length <= MAX_DATABASE_TEXT_FIELD_LENGTH)
     updateData.message = data.message.trim();
 
   if (data.publish_date && typeof data.publish_date == 'string' && !isNaN(new Date(data.publish_date)))
