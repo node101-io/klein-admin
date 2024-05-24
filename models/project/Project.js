@@ -50,7 +50,7 @@ const ProjectSchema = new Schema({
   },
   image: {
     type: Array,
-    default: []
+    default: null
   },
   properties: { // Properties of the project.
     type: Object,
@@ -156,7 +156,6 @@ ProjectSchema.statics.findProjectById = function (id, callback) {
 
   Project.findById(mongoose.Types.ObjectId(id.toString()), (err, project) => {
     if (err) return callback('database_error');
-
     if (!project) return callback('document_not_found');
 
     const is_completed = isProjectComplete(project);
@@ -211,25 +210,39 @@ ProjectSchema.statics.findProjectByIdAndFormatByLanguage = function (id, languag
 ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
   const Project = this;
 
+  if (!data || typeof data != 'object')
+    return callback('bad_request');
+
+  const updateData = {};
+
+  if (data.name && typeof data.name == 'string' && data.name.trim().length && data.name.trim().length < MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.name = data.name.trim();
+
+  if (data.chain_registry_identifier && typeof data.chain_registry_identifier == 'string' && data.chain_registry_identifier.trim().length && data.chain_registry_identifier.trim().length < MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.chain_registry_identifier = data.chain_registry_identifier.trim();
+
+  if (data.description && typeof data.description == 'string' && data.description.trim().length && data.description.trim().length < MAX_DATABASE_TEXT_FIELD_LENGTH)
+    updateData.description = data.description.trim();
+
+  if (data.properties && typeof data.properties == 'object')
+    updateData.properties = getProperties(data.properties);
+
+  if (data.system_requirements && typeof data.system_requirements == 'object')
+    updateData.system_requirements = getSystemRequirements(data.system_requirements);
+
+  if (data.urls && typeof data.urls == 'object')
+    updateData.urls = getURLs(data.urls);
+
+  if (!Object.keys(updateData).length)
+    return callback('bad_request');
+
   Project.findProjectById(id, (err, project) => {
     if (err) return callback(err);
-
     if (project.is_deleted) return callback('not_authenticated_request');
 
-    if (!data.name || typeof data.name != 'string' || !data.name.trim().length || data.name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
-      return callback('bad_request');
-
-    if (!data.chain_registry_identifier || typeof data.chain_registry_identifier != 'string' || !data.chain_registry_identifier.trim().length || data.chain_registry_identifier.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
-      return callback('bad_request');
-
-    Project.findByIdAndUpdate(project._id, { $set: {
-      name: data.name.trim(),
-      chain_registry_identifier: data.chain_registry_identifier.trim(),
-      description: data.description && typeof data.description == 'string' && data.description.trim().length && data.description.trim().length < MAX_DATABASE_TEXT_FIELD_LENGTH ? data.description.trim() : null,
-      properties: getProperties(data.properties),
-      system_requirements: getSystemRequirements(data.system_requirements),
-      urls: getURLs(data.urls)
-    }}, { new: true }, (err, project) => {
+    Project.findByIdAndUpdate(project._id, { $set:
+      updateData
+    }, { new: true }, (err, project) => {
       if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
         return callback('duplicated_unique_field');
 
@@ -471,16 +484,14 @@ ProjectSchema.statics.findProjectCountByFilters = function (data, callback) {
 
   if (!data.search || typeof data.search != 'string' || !data.search.trim().length) {
     Project
-      .find(filters)
-      .countDocuments()
+      .countDocuments(filters)
       .then(count => callback(null, count))
       .catch(err => callback('database_error'));
   } else {
     filters.$text = { $search: data.search.trim() };
 
     Project
-      .find(filters)
-      .countDocuments()
+      .countDocuments(filters)
       .then(count => callback(null, count))
       .catch(err => callback('database_error'));
   };
