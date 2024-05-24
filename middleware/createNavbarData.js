@@ -1,5 +1,11 @@
 module.exports = (req, res, next) => {
   const allMenuData = {
+    'Notifications': [
+      { name: res.__('All Notifications'), link: '/notification' },
+      { name: res.__('Published Notifications'), link: '/notification/publish' },
+      { name: res.__('New Notification'), link: '/notification/create' },
+      { name: res.__('Deleted Notifications'), link: '/notification/delete' }
+    ],
     'Projects': [
       { name: res.__('All Projects'), link: '/project' },
       { name: res.__('New Project'), link: '/project/create' },

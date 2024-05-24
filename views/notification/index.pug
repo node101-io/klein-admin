@@ -1,0 +1,45 @@
+extends ../partials/navbar
+block main
+  .general-header-wrapper
+    .general-header-text-wrapper
+      .general-header-title= __('Projects')
+      .general-header-subtitle= __('Create notifications to be sent to users on Klein.')
+    input.general-header-search-input#notification-search-input(type='text' placeholder='Search by name or description' value=notifications_search)
+  .all-content-inner-wrapper
+    .general-page-wrapper
+      if notifications_search
+        span.general-page-search-text #{__('Showing results of the search:')} "#{notifications_search}"
+      .general-page-inner-wrapper
+        .general-page-buttons-wrapper
+          if notifications_page > 0
+            a.general-page-prev-button(href=`/notification?page=${notifications_page-1}${notifications_search ? '&search=' + notifications_search : ''}`) < #{__('Previous')}
+          else
+            span.general-page-prev-button.general-page-prev-button-not-allowed < #{__('Previous')}
+          - for (let i = 0; i < parseInt(notifications_count / notifications_limit) + (notifications_count % notifications_limit ? 1 : 0); i += 1)
+            if i != notifications_page
+              a.general-each-page-button(href=`/notification?page=${i}${notifications_search ? '&search=' + notifications_search : ''}`)= i+1
+            else
+              span.general-each-page-button.general-each-page-button-selected= i+1
+          if (notifications_page + 1) * notifications_limit < notifications_count
+            a.general-page-next-button(href=`/notification?page=${notifications_page+1}${notifications_search ? '&search=' + notifications_search : ''}`) #{__('Next')} >
+          else
+            span.general-page-next-button.general-page-next-button-not-allowed #{__('Next')} >
+        span.general-page-info #{__('Showing')} #{notifications_limit} #{__('results per page.')}
+    .general-items-wrapper
+      each notification in notifications
+        .general-each-item-wrapper(id=notification._id data-publish-date=notification.publish_date)
+          .general-each-item-title-wrapper
+            span.general-each-item-title= notification.title
+            if !notification.is_completed
+              span.general-each-item-subtitle(style='color: var(--warning-color)')= `(${__('not completed')})`
+            else if notification.message == notification.translations.tr.message
+              span.general-each-item-subtitle(style='color: var(--third-color)')= __('(missing translations)')
+          .general-each-item-buttons-wrapper
+            if notification.is_completed
+              a.general-each-item-fourth-button.publish-each-notification-button#publish-notification-now-button=__('Publish Now!')
+              if notification.will_be_published
+                span.general-each-item-fourth-button-not-allowed=__('Will be published on ') + formatDate(notification.publish_date)
+              else if notification.publish_date
+                span.general-each-item-fourth-button.publish-each-notification-button#publish-notification-later-button=__('Publish on ') + formatDate(notification.publish_date)
+            .general-each-item-second-button.delete-each-notification-button(style='margin-left: auto')= __('Delete')
+            a.general-each-item-first-button(href='/notification/edit?id=' + notification._id)= __('Edit & Translate')

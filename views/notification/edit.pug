@@ -1,0 +1,48 @@
+extends ../partials/navbar
+block main
+  input.display-none#notification-json(type='text' value=JSON.stringify(notification))
+  .general-header-wrapper
+    .general-header-text-wrapper
+      .general-header-title #{__('Edit Project')} - #{notification.title}
+      .general-header-subtitle= __('Edit the notification information and translate the notification.')
+    input.general-header-search-input#notification-search-input(autocomplete='search' name='new-password' placeholder='Search by name or description' value='')
+  .all-content-inner-wrapper
+    .general-create-wrapper
+      if !notification.is_completed
+        .general-create-info= __('IMPORTANT! This notification is not yet complete. Please complete all the required fields to start using this notification in the website.')
+      span.general-create-title= __('General Information')
+      .general-create-seperator
+      .general-create-input-grid-wrapper
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle.general-create-required= __('Notification Title')
+          input.general-input#title(type='text' placeholder=__('Enter the notification title.') value=notification.title)
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle.general-create-required= __('Notification Message')
+          input.general-input#message(type='text' placeholder=__('Enter the notification message.') value=notification.message)
+        .general-create-input-grid-each-item-wrapper
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle= __('Notification Publish Date')
+          input.general-input#publish-date(type='date' value=fromDateToHTMLDateInputString(notification.publish_date))
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle= __('Notification Publish Time')
+          input.general-input#publish-time(type='time' value=fromDateToHTMLTimeInputString(notification.publish_date))
+      .general-create-button-wrapper
+        span.general-create-error#update-error
+        .general-create-button#update-button= __('Update')
+      span.general-create-title= __('Translations')
+      .general-create-seperator
+      span.general-create-text= __('If you do not add a translation for a language users will see english as the default option. You do not have to change all the given fields for any translation, just leave them as they are.')
+      .general-create-button-wrapper
+      span.general-create-title= __('Turkish Translation')
+      .general-create-seperator
+      .general-create-input-grid-wrapper
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle.general-create-required= __('Notification Turkish Title')
+          input.general-input#turkish-title(type='text' placeholder=__('Enter the notification title.') value=notification.translations.tr.title)
+        .general-create-input-grid-each-item-wrapper
+          span.general-create-subtitle.general-create-required= __('Notification Turkish Message')
+          input.general-input#turkish-message(type='text' placeholder=__('Describe the notification with a few simple sentences.') value=notification.translations.tr.message)
+        .general-create-input-grid-each-item-wrapper
+      .general-create-button-wrapper
+        span.general-create-error#update-turkish-error
+        .general-create-button#update-turkish-button= __('Update Turkish')
