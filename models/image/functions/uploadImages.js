@@ -45,7 +45,7 @@ module.exports = (data, callback) => {
   if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
     return callback('bad_request');
 
-  const fileContent = fs.readFileSync(path.join(__dirname, '../uploads/ ' + data.file_name));
+  const fileContent = fs.readFileSync(path.join(__dirname, '../uploads/' + data.file_name));
 
   const resizeParameters = data.resize_parameters.map(parameter => {
     return {
