@@ -438,6 +438,8 @@ NotificationSchema.statics.findNotificationByIdAndSchedule = function (id, callb
     if (notification.is_deleted) return callback(null);
     if (notification.is_published) return callback(null);
 
+    if (!notification.publish_date) return callback('not_authenticated_request');
+
     Notification.findByIdAndUpdate(notification._id, { $set: {
       will_be_published: true
     }}, err => {

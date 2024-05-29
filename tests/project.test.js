@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const request = require('request');
 
 const { isMongoId } = require('validator');
 const { MongoMemoryServer } = require('mongodb-memory-server');
