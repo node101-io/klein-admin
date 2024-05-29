@@ -1,9 +1,9 @@
+const async = require('async');
 const AWS = require('aws-sdk');
 const validator = require('validator');
 
 const generateImagePath = require('./generateImagePath');
 const getImagePathFromUrl = require('./getImagePathFromUrl');
-const { get } = require('http');
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 const MAX_IMAGE_SIZE = 1e4;

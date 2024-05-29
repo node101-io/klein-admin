@@ -3,7 +3,6 @@ const async = require('async');
 const validator = require('validator');
 
 const getImagePathFromURL = require('./getImagePathFromUrl');
-const { get } = require('mongoose');
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
