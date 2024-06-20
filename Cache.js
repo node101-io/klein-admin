@@ -12,14 +12,8 @@ module.exports = {
   },
   set: (key, value) => {
     if (key == 'notifications')
-      notificationCache = {
-        time: Date.now(),
-        data: value
-      };
+      notificationCache = value;
     else if (key == 'projects')
-      projectCache = {
-        time: Date.now(),
-        data: value
-      };
+      projectCache = value;
   }
 };

@@ -21,7 +21,7 @@ module.exports = (req, res) => {
       notifications: data.notifications
     };
 
-    if (cachedNotifications?.time == Cache.get('notifications')?.time)
+    if (JSON.stringify(cachedNotifications) == JSON.stringify(Cache.get('notifications')))
       Cache.set('notifications', response);
 
     return res.json(response);
