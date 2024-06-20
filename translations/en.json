@@ -51,5 +51,8 @@
 	"Publish Now!": "Publish Now!",
 	"Publish at: ": "Publish at: ",
 	"missing translations": "missing translations",
-	"(missing translations)": "(missing translations)"
+	"(missing translations)": "(missing translations)",
+	"Publish on ": "Publish on ",
+	"Create projects to be deployed and managed on Klein.": "Create projects to be deployed and managed on Klein.",
+	"Testnet": "Testnet"
 }

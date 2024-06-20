@@ -2,6 +2,8 @@ const async = require('async');
 const mongoose = require('mongoose');
 const validator = require('validator');
 
+const Cache = require('../../Cache');
+
 const formatTranslations = require('./functions/formatTranslations');
 const getNotification = require('./functions/getNotification');
 const getNotificationByLanguage = require('./functions/getNotificationByLanguage');
@@ -105,7 +107,11 @@ NotificationSchema.statics.createNotification = function (data, callback) {
             search_message: 1
           }}
         )
-        .then(() => callback(null, notification._id.toString()))
+        .then(() => {
+          Cache.set('notifications', null);
+
+          return callback(null, notification._id.toString())
+        })
         .catch(_ => callback('index_error'));
     });
   });
@@ -131,6 +137,8 @@ NotificationSchema.statics.findNotificationById = function (id, callback) {
       is_completed
     }}, { new: true }, (err, notification) => {
       if (err) return callback('database_error');
+
+      Cache.set('notifications', null);
 
       return callback(null, notification);
     });
@@ -206,12 +214,16 @@ NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, c
 
       if (err) return callback('database_error');
 
+      Cache.set('notifications', null);
+
       notification.translations = formatTranslations(notification, 'tr', notification.translations.tr);
 
       Notification.findByIdAndUpdate(notification._id, { $set: {
         translations: notification.translations
       }}, { new: true }, (err, notification) => {
         if (err) return callback('database_error');
+
+        Cache.set('notifications', null);
 
         const searchTitle = new Set();
         const searchMessage = new Set();
@@ -227,6 +239,8 @@ NotificationSchema.statics.findNotificationByIdAndUpdate = function (id, data, c
           search_message: Array.from(searchMessage).join(' ')
         }}, { new: true }, err => {
           if (err) return callback('database_error');
+
+          Cache.set('notifications', null);
 
           Notification.collection
             .createIndex(
@@ -259,12 +273,16 @@ NotificationSchema.statics.findNotificationByIdAndUpdateTranslations = function 
     if (!notification.is_completed)
       return callback('not_authenticated_request');
 
+    Cache.set('notifications', null);
+
     const translations = formatTranslations(notification, data.language, data);
 
     Notification.findByIdAndUpdate(notification._id, { $set: {
       translations
     }}, { new: true }, (err, notification) => {
       if (err) return callback('database_error');
+
+      Cache.set('notifications', null);
 
       const searchTitle = new Set();
       const searchMessage = new Set();
@@ -280,6 +298,8 @@ NotificationSchema.statics.findNotificationByIdAndUpdateTranslations = function 
         search_message: Array.from(searchMessage).join(' ')
       }}, err => {
         if (err) return callback('database_error');
+
+        Cache.set('notifications', null);
 
         Notification.collection
           .createIndex(
@@ -425,6 +445,8 @@ NotificationSchema.statics.findNotificationByIdAndPublish = function (id, callba
     }}, err => {
       if (err) return callback('database_error');
 
+      Cache.set('notifications', null);
+
       return callback(null);
     });
   });
@@ -445,6 +467,8 @@ NotificationSchema.statics.findNotificationByIdAndSchedule = function (id, callb
     }}, err => {
       if (err) return callback('database_error');
 
+      Cache.set('notifications', null);
+
       return callback(null);
     });
   });
@@ -462,6 +486,8 @@ NotificationSchema.statics.findNotificationByIdAndDelete = function (id, callbac
     }}, err => {
       if (err) return callback('database_error');
 
+      Cache.set('notifications', null);
+
       return callback(null);
     });
   });
@@ -478,6 +504,8 @@ NotificationSchema.statics.findNotificationByIdAndRestore = function (id, callba
       is_deleted: false
     }}, err => {
       if (err) return callback('database_error');
+
+      Cache.set('notifications', null);
 
       return callback(null);
     });

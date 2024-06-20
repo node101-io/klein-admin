@@ -1,15 +1,11 @@
+const Cache = require('../../../Cache');
 const Notification = require('../../../models/notification/Notification');
 
-const TEN_SECONDS_IN_MS = 10 * 1000;
-
-let lastRequestTime = 0;
-let lastRequestResponse = null;
-
 module.exports = (req, res) => {
-  if (lastRequestTime > Date.now() - TEN_SECONDS_IN_MS)
-    return res.json(lastRequestResponse);
+  const cachedNotifications = Cache.get('notifications');
 
-  lastRequestTime = Date.now();
+  if (cachedNotifications && cachedNotifications.data)
+    return res.json(cachedNotifications.data);
 
   Notification.findNotificationsByFilters({
     is_deleted: false,
@@ -20,11 +16,14 @@ module.exports = (req, res) => {
       error: err
     });
 
-    lastRequestResponse = {
+    const response = {
       success: true,
       notifications: data.notifications
     };
 
-    return res.json(lastRequestResponse);
+    if (cachedNotifications?.time == Cache.get('notifications')?.time)
+      Cache.set('notifications', response);
+
+    return res.json(response);
   });
 };
