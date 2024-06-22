@@ -2,7 +2,8 @@ const express = require('express');
 const multer = require('multer');
 
 const router = express.Router();
-const upload = multer({ dest: './models/image/uploads/' });
+
+const upload = multer({ dest: './utils/image/uploads/'})
 
 const isSystemAdmin = require('../middleware/isSystemAdmin');
 const createNavbarData = require('../middleware/createNavbarData');

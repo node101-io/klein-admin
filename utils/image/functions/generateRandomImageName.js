@@ -3,10 +3,6 @@ const CHARSET = [
 ];
 const DEFAULT_IMAGE_RANDOM_NAME_LENGTH = 32;
 
-/**
- * @param {number} length
- * @returns {string}
- */
 module.exports = length => {
   if (!length || isNaN(parseInt(length)))
     length = DEFAULT_IMAGE_RANDOM_NAME_LENGTH;

@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 
 const deleteFile = require('../../utils/deleteFile');
-
-const Image = require('../image/Image');
+const Image = require('../../utils/image/Image');
 
 const formatTranslations = require('./functions/formatTranslations');
 const getProject = require('./functions/getProject');
@@ -13,6 +12,7 @@ const getProperties = require('./functions/getProperties');
 const getSystemRequirements = require('./functions/getSystemRequirements');
 const getURLs = require('./functions/getURLs');
 const isProjectComplete = require('./functions/isProjectComplete');
+const getImagePathFromUrl = require('../../utils/image/functions/getImagePathFromUrl');
 
 const DEFAULT_DOCUMENT_COUNT_PER_QUERY = 20;
 const DEFAULT_FIT_PARAMETER = 'cover';
@@ -301,41 +301,103 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
         width: IMAGE_WIDTH * 1/4,
         height: IMAGE_HEIGHT * 1/4
       }, {
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT * 3/4
+        width: IMAGE_WIDTH * 1/2,
+        height: IMAGE_HEIGHT * 1/2
       }, {
-        width: IMAGE_WIDTH * 2/3,
+        width: IMAGE_WIDTH,
         height: IMAGE_HEIGHT
       }],
-      is_used: true,
       delete_uploaded_file: true
     };
 
-    Image.createImage(imageData, (err, url_list) => {
+    Image.uploadImages(imageData, (err, url_list) => {
       if (err) return callback(err);
 
-      Project.findByIdAndUpdate(project._id, { $set: {
-        image: url_list
-      }}, err => {
-        if (err) return callback(err);
+      if (!project.image.length || !Array.isArray(project.image)) {
+        Project.findByIdAndUpdate(project._id, { $set: {
+          image: url_list
+        }}, err => {
+          if (err) return callback('database_error');
 
-        if ('delete_uploaded_file' in imageData) {
-          if (!!imageData.delete_uploaded_file) {
+          if ('delete_uploaded_file' in imageData) {
+            if (!!imageData.delete_uploaded_file) {
+              deleteFile(file, err => {
+                if (err) return callback(err);
+
+                return callback(null, imagesToBeKept);
+              });
+            } else {
+              return callback(null, imagesToBeKept);
+            };
+          } else {
             deleteFile(file, err => {
               if (err) return callback(err);
 
-              return callback(null, url_list);
+              return callback(null, imagesToBeKept);
             });
-          } else {
-            return callback(null, url_list);
           };
-        } else {
-          deleteFile(file, err => {
-            if (err) return callback(err);
+        });
+      };
 
-            return callback(null, url_list);
-          });
-        };
+      const imagesToBeDeleted = [], imagesToBeKept = [];
+      const existingImagePaths = [], uploadedImagePaths = [];
+
+      for (let i = 0; i < project.image.length; i++) {
+        getImagePathFromUrl(project.image[i].url, (err, imagePath) => {
+          if (err) return callback(err);
+
+          existingImagePaths.push(imagePath);
+        });
+      };
+
+      for (let i = 0; i < url_list.length; i++) {
+        getImagePathFromUrl(url_list[i].url, (err, imagePath) => {
+          if (err) return callback(err);
+
+          uploadedImagePaths.push(imagePath);
+        });
+      };
+
+      const pathsToBeDeleted = existingImagePaths.filter(existingImagePath => !uploadedImagePaths.includes(existingImagePath));
+
+      for (let i = 0; i < uploadedImagePaths.length; i++) {
+        const imageIndex = uploadedImagePaths.indexOf(uploadedImagePaths[i]);
+
+        imagesToBeKept.push(url_list[imageIndex]);
+      };
+
+      for (let i = 0; i < pathsToBeDeleted.length; i++) {
+        const imageIndex = existingImagePaths.indexOf(pathsToBeDeleted[i]);
+
+        imagesToBeDeleted.push(project.image[imageIndex]);
+      };
+
+      Image.deleteImages(imagesToBeDeleted, err => {
+        if (err) return callback(err);
+
+        Project.findByIdAndUpdate(project._id, { $set: {
+          image: imagesToBeKept
+        }}, err => {
+          if (err) return callback('database_error');
+
+          if ('delete_uploaded_file' in imageData) {
+            if (!!imageData.delete_uploaded_file) {
+              deleteFile(file, err => {
+                if (err) return callback(err);
+
+                return callback(null, imagesToBeKept);
+              });
+            } else {
+              return callback(null, imagesToBeKept);
+            };
+          } else {
+            deleteFile(file, err => {
+              if (err) return callback(err);
+
+              return callback(null, imagesToBeKept);
+            });
+          };
+        });
       });
     });
   });

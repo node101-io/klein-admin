@@ -1,6 +1,6 @@
 node_modules/
 .env
-models/image/uploads/*
+utils/image/uploads/*
 utils/updateData.js
 data/*
 .DS_Store

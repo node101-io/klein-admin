@@ -1,23 +1,5 @@
 const MAX_IMAGE_SIZE = 1e4;
 
-/**
- * @typedef {{
- *  name: string,
- *  width?: number,
- *  height?: number
- * }} GenerateImagePathData
- */
-
-/**
- * @callback generateImagePathCallback
- * @param {string} err
- * @param {string} imagePath
- */
-
-/**
- * @param {GenerateImagePathData} data
- * @param {generateImagePathCallback} callback
- */
 module.exports = (data, callback) => {
   if (!data || typeof data != 'object')
     return callback('bad_request');
