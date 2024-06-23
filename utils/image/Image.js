@@ -10,15 +10,21 @@ const generateRandomHEX = require('../generateRandomHEX');
 const getImagePathFromUrl = require('./functions/getImagePathFromUrl');
 const toURLString = require('../toURLString');
 
-const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+const AWS_BUCKET_REGION = process.env.AWS_BUCKET_REGION;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+
 const DEFAULT_FIT_PARAMETER = 'cover';
 const FIT_PARAMETERS = [ 'contain', 'cover', 'fill', 'inside', 'outside' ];
 const MAX_DATABASE_TEXT_FIELD_LENGTH = 1e4;
 const MAX_IMAGE_SIZE = 1e4;
 
 const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  AWS_ACCESS_KEY_ID,
+  AWS_BUCKET_NAME,
+  AWS_BUCKET_REGION,
+  AWS_SECRET_ACCESS_KEY
 });
 
 const Image = {
@@ -82,7 +88,7 @@ const Image = {
               if (err) return next(err);
 
               const uploadParams = {
-                Bucket: BUCKET_NAME,
+                Bucket: AWS_BUCKET_NAME,
                 Key: imagePath,
                 Body: image,
                 ContentType: 'image/webp',
@@ -118,6 +124,8 @@ const Image = {
     if (!data.url_list || !data.url_list.length || !Array.isArray(data.url_list))
       return callback('bad_request');
 
+    data.name = toURLString(data.name);
+
     async.times(
       data.url_list.length,
       (time, next) => {
@@ -146,20 +154,23 @@ const Image = {
             if (err) return next(err);
 
             s3.copyObject({
-              Bucket: BUCKET_NAME,
-              CopySource: BUCKET_NAME + '/' + oldImagePath,
-              Key: newImagePath
-            }, (err, image) => {
+              Bucket: AWS_BUCKET_NAME,
+              CopySource: AWS_BUCKET_NAME + '/' + oldImagePath,
+              Key: newImagePath,
+              ACL: 'public-read'
+            }, err => {
               if (err) return next(err);
 
+              const newImageUrl = `https://${AWS_BUCKET_NAME}.s3.${AWS_BUCKET_REGION}.amazonaws.com/${newImagePath}`;
+
               s3.deleteObject({
-                Bucket: BUCKET_NAME,
+                Bucket: AWS_BUCKET_NAME,
                 Key: oldImagePath
               }, err => {
                 if (err) return next(err);
 
                 next(null, {
-                  url: image.Location,
+                  url: newImageUrl,
                   width: urlData.width,
                   height: urlData.height
                 });
@@ -189,11 +200,11 @@ const Image = {
         if (!urlData.url || !urlData.url.length || !validator.isURL(urlData.url))
           return next('bad_request');
 
-        getImagePathFromURL(urlData.url, (err, imagePath) => {
+        getImagePathFromUrl(urlData.url, (err, imagePath) => {
           if (err) return next(err);
 
           s3.deleteObject({
-            Bucket: BUCKET_NAME,
+            Bucket: AWS_BUCKET_NAME,
             Key: imagePath
           }, err => {
             if (err) return next(err);

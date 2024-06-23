@@ -240,48 +240,66 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
     if (err) return callback(err);
     if (project.is_deleted) return callback('not_authenticated_request');
 
-    Project.findByIdAndUpdate(project._id, { $set:
-      updateData
-    }, { new: true }, (err, project) => {
-      if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-        return callback('duplicated_unique_field');
-
-      if (err) return callback('database_error');
-
-      project.translations = formatTranslations(project, 'tr', project.translations.tr);
-
-      Project.findByIdAndUpdate(project._id, { $set: {
-        translations: project.translations
-      }}, { new: true }, (err, project) => {
+    const performUpdate = () => {
+      Project.findByIdAndUpdate(project._id, { $set:
+        updateData
+      }, { new: true }, (err, project) => {
+        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+          return callback('duplicated_unique_field');
         if (err) return callback('database_error');
 
-        const searchName = new Set();
-        const searchDescription = new Set();
-
-        project.name.split(' ').forEach(word => searchName.add(word));
-        project.translations.tr.name.split(' ').forEach(word => searchName.add(word));
-        project.description.split(' ').forEach(word => searchDescription.add(word));
-        project.translations.tr.description.split(' ').forEach(word => searchDescription.add(word));
+        project.translations = formatTranslations(project, 'tr', project.translations.tr);
 
         Project.findByIdAndUpdate(project._id, { $set: {
-          search_name: Array.from(searchName).join(' '),
-          search_description: Array.from(searchDescription).join(' ')
+          translations: project.translations
         }}, { new: true }, (err, project) => {
           if (err) return callback('database_error');
 
-          Project.collection
-            .createIndex(
-              { search_name: 'text', search_description: 'text' },
-              { weights: {
-                search_name: 10,
-                search_description: 1
-              }}
-            )
-            .then(() => callback(null))
-            .catch(_ => callback('index_error'));
+          const searchName = new Set();
+          const searchDescription = new Set();
+
+          project.name.split(' ').forEach(word => searchName.add(word));
+          project.translations.tr.name.split(' ').forEach(word => searchName.add(word));
+          project.description.split(' ').forEach(word => searchDescription.add(word));
+          project.translations.tr.description.split(' ').forEach(word => searchDescription.add(word));
+
+          Project.findByIdAndUpdate(project._id, { $set: {
+            search_name: Array.from(searchName).join(' '),
+            search_description: Array.from(searchDescription).join(' ')
+          }}, { new: true }, err => {
+            if (err) return callback('database_error');
+
+            Project.collection
+              .createIndex(
+                { search_name: 'text', search_description: 'text' },
+                { weights: {
+                  search_name: 10,
+                  search_description: 1
+                }}
+              )
+              .then(() => callback(null))
+              .catch(_ => callback('index_error'));
+          });
         });
       });
-    });
+    };
+
+    if (updateData.chain_registry_identifier != project.chain_registry_identifier) {
+      const renameData = {
+        name: IMAGE_NAME_PREFIX + updateData.chain_registry_identifier,
+        url_list: project.image
+      };
+
+      Image.renameImages(renameData, (err, url_list) => {
+        if (err) return callback(err);
+
+        updateData.image = url_list;
+
+        performUpdate();
+      });
+    } else {
+      performUpdate();
+    };
   });
 };
 
