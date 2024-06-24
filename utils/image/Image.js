@@ -35,84 +35,68 @@ const Image = {
     if (!data.file_name || typeof data.file_name != 'string' || !data.file_name.trim().length || data.file_name.trim().length > MAX_DATABASE_TEXT_FIELD_LENGTH)
       return callback('bad_request');
 
-    if (data.name && typeof data.name == 'string')
-      data.name = toURLString(data.name);
-    else
-      data.name = generateRandomHEX();
-
-    if (!data.fit || !FIT_PARAMETERS.includes(data.fit))
-      data.fit = DEFAULT_FIT_PARAMETER;
-
     if (!data.resize_parameters || !Array.isArray(data.resize_parameters) || !data.resize_parameters.length)
       return callback('bad_request');
 
-    data.resize_parameters.forEach(resize_parameter => {
-      resize_parameter.width = (!resize_parameter.width || isNaN(parseInt(resize_parameter.width)) || parseInt(resize_parameter.width) <= 0 || parseInt(resize_parameter.width) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.width);
-      resize_parameter.height = (!resize_parameter.height || isNaN(parseInt(resize_parameter.height)) || parseInt(resize_parameter.height) <= 0 || parseInt(resize_parameter.height) > MAX_IMAGE_SIZE) ? null : parseInt(resize_parameter.height);
+    data.name = data.name && typeof data.name == 'string' ? toURLString(data.name) : generateRandomHEX();
+    data.fit = data.fit && FIT_PARAMETERS.includes(data.fit) ? data.fit : DEFAULT_FIT_PARAMETER;
 
-      if (!resize_parameter.width && !resize_parameter.height)
-        return callback('bad_request');
-    });
-
-    const fileContent = fs.readFileSync(path.join(__dirname, '/uploads/' + data.file_name));
-
-    const resizeParameters = data.resize_parameters.map(parameter => {
-      return {
+    for (let i = 0; i < data.resize_parameters.length; i++) {
+      data.resize_parameters[i] = {
         fit: data.fit,
-        width: parameter?.width,
-        height: parameter?.height
+        width: (!data.resize_parameters[i].width || isNaN(parseInt(data.resize_parameters[i].width)) || parseInt(data.resize_parameters[i].width) <= 0 || parseInt(data.resize_parameters[i].width) > MAX_IMAGE_SIZE) ? null : parseInt(data.resize_parameters[i].width),
+        height: (!data.resize_parameters[i].height || isNaN(parseInt(data.resize_parameters[i].height)) || parseInt(data.resize_parameters[i].height) <= 0 || parseInt(data.resize_parameters[i].height) > MAX_IMAGE_SIZE) ? null : parseInt(data.resize_parameters[i].height)
       };
-    });
 
-    async.times(
-      resizeParameters.length,
-      (time, next) => {
-        const resizeParameter = resizeParameters[time];
+      if (!data.resize_parameters[i].width && !data.resize_parameters[i].height)
+        return callback('bad_request');
+    };
 
-        resizeParameter.width = (!resizeParameter.width || isNaN(parseInt(resizeParameter.width)) || parseInt(resizeParameter.width) <= 0 || parseInt(resizeParameter.width) > MAX_IMAGE_SIZE) ? null : parseInt(resizeParameter.width);
-        resizeParameter.height = (!resizeParameter.height || isNaN(parseInt(resizeParameter.height)) || parseInt(resizeParameter.height) <= 0 || parseInt(resizeParameter.height) > MAX_IMAGE_SIZE) ? null : parseInt(resizeParameter.height);
+    fs.readFile(path.join(__dirname, '/uploads/' + data.file_name), (err, fileContent) => {
+      if (err) return callback('document_not_found');
 
-        if (!resizeParameter.width && !resizeParameter.height)
-          return next('bad_request');
+      async.times(
+        data.resize_parameters.length,
+        (time, next) => {
+          const resizeParameter = data.resize_parameters[time];
 
-        sharp(fileContent)
-          .resize(resizeParameter)
-          .webp()
-          .toBuffer()
-          .then(image => {
-            generateImagePath({
-              name: data.name,
-              width: resizeParameter.width,
-              height: resizeParameter.height
-            }, (err, imagePath) => {
-              if (err) return next(err);
-
-              const uploadParams = {
-                Bucket: AWS_BUCKET_NAME,
-                Key: imagePath,
-                Body: image,
-                ContentType: 'image/webp',
-                ACL: 'public-read'
-              };
-
-              s3.upload(uploadParams, (err, response) => {
+          sharp(fileContent)
+            .resize(resizeParameter)
+            .webp()
+            .toBuffer()
+            .then(image => {
+              generateImagePath({
+                name: data.name,
+                width: resizeParameter.width,
+                height: resizeParameter.height
+              }, (err, imagePath) => {
                 if (err) return next(err);
 
-                next(null, {
-                  url: response.Location,
-                  width: resizeParameter.width,
-                  height: resizeParameter.height
+                s3.upload({
+                  Bucket: AWS_BUCKET_NAME,
+                  Key: imagePath,
+                  Body: image,
+                  ContentType: 'image/webp',
+                  ACL: 'public-read'
+                }, (err, response) => {
+                  if (err) return next(err);
+
+                  next(null, {
+                    url: response.Location,
+                    width: resizeParameter.width,
+                    height: resizeParameter.height
+                  });
                 });
               });
-            });
-          })
-          .catch(_ => next('database_error'));
-      }, (err, url_list) => {
-        if (err) return callback(err);
+            })
+            .catch(_ => next('database_error'));
+        }, (err, url_list) => {
+          if (err) return callback(err);
 
-        return callback(null, url_list);
-      }
-    );
+          return callback(null, url_list);
+        }
+      );
+    });
   },
   renameImages: (data, callback) => {
     if (!data || typeof data != 'object')
@@ -123,8 +107,6 @@ const Image = {
 
     if (!data.url_list || !data.url_list.length || !Array.isArray(data.url_list))
       return callback('bad_request');
-
-    data.name = toURLString(data.name);
 
     async.times(
       data.url_list.length,
@@ -144,7 +126,7 @@ const Image = {
           return next('bad_request');
 
         generateImagePath({
-          name: data.name,
+          name: toURLString(data.name),
           width: urlData.width,
           height: urlData.height
         }, (err, newImagePath) => {
@@ -161,8 +143,6 @@ const Image = {
             }, err => {
               if (err) return next(err);
 
-              const newImageUrl = `https://${AWS_BUCKET_NAME}.s3.${AWS_BUCKET_REGION}.amazonaws.com/${newImagePath}`;
-
               s3.deleteObject({
                 Bucket: AWS_BUCKET_NAME,
                 Key: oldImagePath
@@ -170,7 +150,7 @@ const Image = {
                 if (err) return next(err);
 
                 next(null, {
-                  url: newImageUrl,
+                  url: `https://${AWS_BUCKET_NAME}.s3.${AWS_BUCKET_REGION}.amazonaws.com/${newImagePath}`,
                   width: urlData.width,
                   height: urlData.height
                 });
