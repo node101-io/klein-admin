@@ -1,9 +1,9 @@
 const async = require('async');
-const AWS = require('aws-sdk');
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const validator = require('validator');
+const { S3Client, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const generateImagePath = require('./functions/generateImagePath');
 const generateRandomHEX = require('../generateRandomHEX');
@@ -20,11 +20,12 @@ const FIT_PARAMETERS = [ 'contain', 'cover', 'fill', 'inside', 'outside' ];
 const MAX_DATABASE_TEXT_FIELD_LENGTH = 1e4;
 const MAX_IMAGE_SIZE = 1e4;
 
-const s3 = new AWS.S3({
-  AWS_ACCESS_KEY_ID,
-  AWS_BUCKET_NAME,
-  AWS_BUCKET_REGION,
-  AWS_SECRET_ACCESS_KEY
+const s3Client = new S3Client({
+  region: AWS_BUCKET_REGION,
+  credentials: {
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY
+  }
 });
 
 const Image = {
@@ -72,17 +73,17 @@ const Image = {
               }, (err, imagePath) => {
                 if (err) return next(err);
 
-                s3.upload({
+                s3Client.send(new PutObjectCommand({
                   Bucket: AWS_BUCKET_NAME,
                   Key: imagePath,
                   Body: image,
                   ContentType: 'image/webp',
                   ACL: 'public-read'
-                }, (err, response) => {
-                  if (err) return next(err);
+                }), err => {
+                  if (err) return next('aws_database_error');
 
                   next(null, {
-                    url: response.Location,
+                    url: `https://${AWS_BUCKET_NAME}.s3.${AWS_BUCKET_REGION}.amazonaws.com/${imagePath}`,
                     width: resizeParameter.width,
                     height: resizeParameter.height
                   });
@@ -135,19 +136,19 @@ const Image = {
           getImagePathFromUrl(urlData.url, (err, oldImagePath) => {
             if (err) return next(err);
 
-            s3.copyObject({
+            s3Client.send(new CopyObjectCommand({
               Bucket: AWS_BUCKET_NAME,
-              CopySource: AWS_BUCKET_NAME + '/' + oldImagePath,
+              CopySource: `${AWS_BUCKET_NAME}/${oldImagePath}`,
               Key: newImagePath,
               ACL: 'public-read'
-            }, err => {
-              if (err) return next(err);
+            }), err => {
+              if (err) return next('aws_database_error');
 
-              s3.deleteObject({
+              s3Client.send(new DeleteObjectCommand({
                 Bucket: AWS_BUCKET_NAME,
                 Key: oldImagePath
-              }, err => {
-                if (err) return next(err);
+              }), err => {
+                if (err) return next('aws_database_error');
 
                 next(null, {
                   url: `https://${AWS_BUCKET_NAME}.s3.${AWS_BUCKET_REGION}.amazonaws.com/${newImagePath}`,
@@ -183,11 +184,11 @@ const Image = {
         getImagePathFromUrl(urlData.url, (err, imagePath) => {
           if (err) return next(err);
 
-          s3.deleteObject({
+          s3Client.send(new DeleteObjectCommand({
             Bucket: AWS_BUCKET_NAME,
             Key: imagePath
-          }, err => {
-            if (err) return next(err);
+          }), err => {
+            if (err) return next('aws_database_error');
 
             next(null);
           });
