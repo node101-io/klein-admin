@@ -285,12 +285,10 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
     };
 
     if (updateData.chain_registry_identifier != project.chain_registry_identifier) {
-      const renameData = {
+      Image.renameImages({
         name: IMAGE_NAME_PREFIX + updateData.chain_registry_identifier,
         url_list: project.image
-      };
-
-      Image.renameImages(renameData, (err, url_list) => {
+      }, (err, url_list) => {
         if (err) return callback(err);
 
         updateData.image = url_list;
@@ -315,16 +313,20 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
       file_name: file.filename,
       name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
       fit: DEFAULT_FIT_PARAMETER,
-      resize_parameters: [{
-        width: IMAGE_WIDTH * 1/4,
-        height: IMAGE_HEIGHT * 1/4
-      }, {
-        width: IMAGE_WIDTH * 1/2,
-        height: IMAGE_HEIGHT * 1/2
-      }, {
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT
-      }],
+      resize_parameters: [
+        {
+          width: IMAGE_WIDTH * 1/4,
+          height: IMAGE_HEIGHT * 1/4
+        },
+        {
+          width: IMAGE_WIDTH * 1/2,
+          height: IMAGE_HEIGHT * 1/2
+        },
+        {
+          width: IMAGE_WIDTH,
+          height: IMAGE_HEIGHT
+        }
+      ],
       delete_uploaded_file: true
     };
 
