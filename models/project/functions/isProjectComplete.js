@@ -3,5 +3,6 @@ module.exports = project => {
     project.name &&
     project.chain_registry_identifier &&
     project.description &&
-    project.image ? true : false;
+    Array.isArray(project.image) &&
+    project.image.length ? true : false;
 };

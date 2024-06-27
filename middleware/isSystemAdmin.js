@@ -6,7 +6,7 @@ module.exports = (req, res, next) => {
     return next();
 
   if (req.file && req.file.filename)
-    return fs.unlink(path.join(__dirname, '../models/image/uploads/' + req.file.filename), () => {
+    return fs.unlink(path.join(__dirname, '../utils/image/uploads/' + req.file.filename), () => {
       return res.status(401).redirect('/admin/login');
     });
 

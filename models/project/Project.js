@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 
 const deleteFile = require('../../utils/deleteFile');
-
-const Image = require('../image/Image');
+const Image = require('../../utils/image/Image');
 
 const formatTranslations = require('./functions/formatTranslations');
 const getProject = require('./functions/getProject');
@@ -13,6 +12,7 @@ const getProperties = require('./functions/getProperties');
 const getSystemRequirements = require('./functions/getSystemRequirements');
 const getURLs = require('./functions/getURLs');
 const isProjectComplete = require('./functions/isProjectComplete');
+const getImagePathFromUrl = require('../../utils/image/functions/getImagePathFromUrl');
 
 const DEFAULT_DOCUMENT_COUNT_PER_QUERY = 20;
 const DEFAULT_FIT_PARAMETER = 'cover';
@@ -240,48 +240,64 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
     if (err) return callback(err);
     if (project.is_deleted) return callback('not_authenticated_request');
 
-    Project.findByIdAndUpdate(project._id, { $set:
-      updateData
-    }, { new: true }, (err, project) => {
-      if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
-        return callback('duplicated_unique_field');
-
-      if (err) return callback('database_error');
-
-      project.translations = formatTranslations(project, 'tr', project.translations.tr);
-
-      Project.findByIdAndUpdate(project._id, { $set: {
-        translations: project.translations
-      }}, { new: true }, (err, project) => {
+    const performUpdate = () => {
+      Project.findByIdAndUpdate(project._id, { $set:
+        updateData
+      }, { new: true }, (err, project) => {
+        if (err && err.code == DUPLICATED_UNIQUE_FIELD_ERROR_CODE)
+          return callback('duplicated_unique_field');
         if (err) return callback('database_error');
 
-        const searchName = new Set();
-        const searchDescription = new Set();
-
-        project.name.split(' ').forEach(word => searchName.add(word));
-        project.translations.tr.name.split(' ').forEach(word => searchName.add(word));
-        project.description.split(' ').forEach(word => searchDescription.add(word));
-        project.translations.tr.description.split(' ').forEach(word => searchDescription.add(word));
+        project.translations = formatTranslations(project, 'tr', project.translations.tr);
 
         Project.findByIdAndUpdate(project._id, { $set: {
-          search_name: Array.from(searchName).join(' '),
-          search_description: Array.from(searchDescription).join(' ')
+          translations: project.translations
         }}, { new: true }, (err, project) => {
           if (err) return callback('database_error');
 
-          Project.collection
-            .createIndex(
-              { search_name: 'text', search_description: 'text' },
-              { weights: {
-                search_name: 10,
-                search_description: 1
-              }}
-            )
-            .then(() => callback(null))
-            .catch(_ => callback('index_error'));
+          const searchName = new Set();
+          const searchDescription = new Set();
+
+          project.name.split(' ').forEach(word => searchName.add(word));
+          project.translations.tr.name.split(' ').forEach(word => searchName.add(word));
+          project.description.split(' ').forEach(word => searchDescription.add(word));
+          project.translations.tr.description.split(' ').forEach(word => searchDescription.add(word));
+
+          Project.findByIdAndUpdate(project._id, { $set: {
+            search_name: Array.from(searchName).join(' '),
+            search_description: Array.from(searchDescription).join(' ')
+          }}, { new: true }, err => {
+            if (err) return callback('database_error');
+
+            Project.collection
+              .createIndex(
+                { search_name: 'text', search_description: 'text' },
+                { weights: {
+                  search_name: 10,
+                  search_description: 1
+                }}
+              )
+              .then(() => callback(null))
+              .catch(_ => callback('index_error'));
+          });
         });
       });
-    });
+    };
+
+    if (updateData.chain_registry_identifier != project.chain_registry_identifier) {
+      Image.renameImages({
+        name: IMAGE_NAME_PREFIX + updateData.chain_registry_identifier,
+        url_list: project.image
+      }, (err, url_list) => {
+        if (err) return callback(err);
+
+        updateData.image = url_list;
+
+        performUpdate();
+      });
+    } else {
+      performUpdate();
+    };
   });
 };
 
@@ -297,45 +313,111 @@ ProjectSchema.statics.findProjectByIdAndUpdateImage = function (id, file, callba
       file_name: file.filename,
       name: IMAGE_NAME_PREFIX + project.chain_registry_identifier,
       fit: DEFAULT_FIT_PARAMETER,
-      resize_parameters: [{
-        width: IMAGE_WIDTH * 1/4,
-        height: IMAGE_HEIGHT * 1/4
-      }, {
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT * 3/4
-      }, {
-        width: IMAGE_WIDTH * 2/3,
-        height: IMAGE_HEIGHT
-      }],
-      is_used: true,
+      resize_parameters: [
+        {
+          width: IMAGE_WIDTH * 1/4,
+          height: IMAGE_HEIGHT * 1/4
+        },
+        {
+          width: IMAGE_WIDTH * 1/2,
+          height: IMAGE_HEIGHT * 1/2
+        },
+        {
+          width: IMAGE_WIDTH,
+          height: IMAGE_HEIGHT
+        }
+      ],
       delete_uploaded_file: true
     };
 
-    Image.createImage(imageData, (err, url_list) => {
+    Image.uploadImages(imageData, (err, url_list) => {
       if (err) return callback(err);
 
-      Project.findByIdAndUpdate(project._id, { $set: {
-        image: url_list
-      }}, err => {
-        if (err) return callback(err);
+      if (!project.image.length || !Array.isArray(project.image)) {
+        Project.findByIdAndUpdate(project._id, { $set: {
+          image: url_list
+        }}, err => {
+          if (err) return callback('database_error');
 
-        if ('delete_uploaded_file' in imageData) {
-          if (!!imageData.delete_uploaded_file) {
+          if ('delete_uploaded_file' in imageData) {
+            if (!!imageData.delete_uploaded_file) {
+              deleteFile(file, err => {
+                if (err) return callback(err);
+
+                return callback(null, imagesToBeKept);
+              });
+            } else {
+              return callback(null, imagesToBeKept);
+            };
+          } else {
             deleteFile(file, err => {
               if (err) return callback(err);
 
-              return callback(null, url_list);
+              return callback(null, imagesToBeKept);
             });
-          } else {
-            return callback(null, url_list);
           };
-        } else {
-          deleteFile(file, err => {
-            if (err) return callback(err);
+        });
+      };
 
-            return callback(null, url_list);
-          });
-        };
+      const imagesToBeDeleted = [], imagesToBeKept = [];
+      const existingImagePaths = [], uploadedImagePaths = [];
+
+      for (let i = 0; i < project.image.length; i++) {
+        getImagePathFromUrl(project.image[i].url, (err, imagePath) => {
+          if (err) return callback(err);
+
+          existingImagePaths.push(imagePath);
+        });
+      };
+
+      for (let i = 0; i < url_list.length; i++) {
+        getImagePathFromUrl(url_list[i].url, (err, imagePath) => {
+          if (err) return callback(err);
+
+          uploadedImagePaths.push(imagePath);
+        });
+      };
+
+      const pathsToBeDeleted = existingImagePaths.filter(existingImagePath => !uploadedImagePaths.includes(existingImagePath));
+
+      for (let i = 0; i < uploadedImagePaths.length; i++) {
+        const imageIndex = uploadedImagePaths.indexOf(uploadedImagePaths[i]);
+
+        imagesToBeKept.push(url_list[imageIndex]);
+      };
+
+      for (let i = 0; i < pathsToBeDeleted.length; i++) {
+        const imageIndex = existingImagePaths.indexOf(pathsToBeDeleted[i]);
+
+        imagesToBeDeleted.push(project.image[imageIndex]);
+      };
+
+      Image.deleteImages(imagesToBeDeleted, err => {
+        if (err) return callback(err);
+
+        Project.findByIdAndUpdate(project._id, { $set: {
+          image: imagesToBeKept
+        }}, err => {
+          if (err) return callback('database_error');
+
+          if ('delete_uploaded_file' in imageData) {
+            if (!!imageData.delete_uploaded_file) {
+              deleteFile(file, err => {
+                if (err) return callback(err);
+
+                return callback(null, imagesToBeKept);
+              });
+            } else {
+              return callback(null, imagesToBeKept);
+            };
+          } else {
+            deleteFile(file, err => {
+              if (err) return callback(err);
+
+              return callback(null, imagesToBeKept);
+            });
+          };
+        });
       });
     });
   });
