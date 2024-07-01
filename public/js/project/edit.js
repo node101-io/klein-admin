@@ -1,5 +1,6 @@
 window.addEventListener('load', () => {
   const project = JSON.parse(document.getElementById('project-json').value);
+  const nonGenericTxCommandsInput = document.getElementById('non-generic-tx-commands-json');
 
   if (document.getElementById('project-search-input')) {
     document.getElementById('project-search-input').focus();
@@ -22,6 +23,7 @@ window.addEventListener('load', () => {
       const name = document.getElementById('name').value;
       const chainRegistryIdentifier = document.getElementById('chain-registry-identifier').value;
       const description = document.getElementById('description').value;
+      const nonGenericTxCommandsInputValue = JSON.parse(nonGenericTxCommandsInput.value);
       const properties = {};
       const systemRequirements = {};
       const URLs = {};
@@ -31,7 +33,7 @@ window.addEventListener('load', () => {
       const URLInputs = document.querySelectorAll('.social-account-input');
 
       for (let i = 0; i < propertyInputs.length; i++)
-        properties[propertyInputs[i].id]= propertyInputs[i].checked;
+        properties[propertyInputs[i].id] = propertyInputs[i].checked;
 
       for (let i = 0; i < systemRequirementInputs.length; i++)
         if (systemRequirementInputs[i].value && systemRequirementInputs[i].value.trim().length)
@@ -54,6 +56,7 @@ window.addEventListener('load', () => {
         name,
         chain_registry_identifier: chainRegistryIdentifier,
         description,
+        non_generic_tx_commands: nonGenericTxCommandsInputValue,
         properties,
         system_requirements: systemRequirements,
         urls: URLs
@@ -103,7 +106,22 @@ window.addEventListener('load', () => {
             accept: 'Close'
           }, _ => window.location.reload());
       });
-    }
+    };
+
+    if (event.target.closest('.tx-command')) {
+      const button = event.target.closest('.tx-command');
+
+      const nonGenericCommands = JSON.parse(nonGenericTxCommandsInput.value)
+
+      if (nonGenericCommands.includes(button.id))
+        nonGenericCommands.splice(nonGenericCommands.indexOf(button.id), 1);
+      else
+        nonGenericCommands.push(button.id);
+
+      nonGenericTxCommandsInput.value = JSON.stringify(nonGenericCommands);
+
+      button.querySelector('.general-create-text').innerText = nonGenericCommands.includes(button.id) ? '❌' : '✅';
+    };
   });
 
   document.addEventListener('change', event => {

@@ -191,5 +191,17 @@
 	"Will be published on ": "Will be published on ",
 	"Publish: on ": "Publish: on ",
 	"Publish on ": "Publish on ",
-	"Published on ": "Published on "
+	"Published on ": "Published on ",
+	"Create Validator": "Create Validator",
+	"Delegate Token": "Delegate Token",
+	"Edit Validator": "Edit Validator",
+	"Redelegate Token": "Redelegate Token",
+	"Send Token": "Send Token",
+	"Undelegate Token": "Undelegate Token",
+	"Unjail Validator": "Unjail Validator",
+	"Vote Proposal": "Vote Proposal",
+	"Withdraw Rewards": "Withdraw Rewards",
+	"Non Generic Command Information": "Non Generic Command Information",
+	"Scroll to add a non generic command": "Scroll to add a non generic command",
+	"Non Generic Command": "Non Generic Command"
 }

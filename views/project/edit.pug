@@ -24,7 +24,7 @@ block main
           input.general-input#description(type='text' placeholder=__('Describe the project with a few simple sentences.') value=project.description)
         .general-create-input-grid-each-item-wrapper
           span.general-create-subtitle.general-create-required= __('Project Image')
-          if project.image
+          if project.image && Array.isArray(project.image) && project.image.length > 0
             label.general-image-input-wrapper(style='cursor: default')
               .general-image-input-image(style=`background-image: url(${project.image}?${new Date().getTime()})`)
               svg.general-image-input-delete-button(fill='var(--warning-color)' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512')
@@ -33,6 +33,15 @@ block main
             label.general-image-input-wrapper(style='cursor: pointer')
               input.display-none#image(type='file')
               span.general-image-input-placeholder= __('Upload from your device.')
+      span.general-create-title= __('Non Generic Command Information')
+      .general-create-seperator
+      .general-create-text= __('✅ means the command is default, ❌ means the project has a custom command.')
+      .general-create-input-grid-wrapper
+        .general-create-input-grid-each-item-wrapper
+          input.display-none#non-generic-tx-commands-json(type='text' value=JSON.stringify(project.non_generic_tx_commands))
+          each command, index in Object.keys(nonGenericTxCommands)
+            button.general-button.tx-command(id=command)= nonGenericTxCommands[command]
+              .general-create-text(style='margin-left: auto;')= project.non_generic_tx_commands && project.non_generic_tx_commands.includes(command) ? '❌' : '✅'
       span.general-create-title= __('Status Information')
       .general-create-seperator
       .general-create-input-grid-wrapper

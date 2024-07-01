@@ -11,8 +11,9 @@ const getProjectByLanguage = require('./functions/getProjectByLanguage');
 const getProperties = require('./functions/getProperties');
 const getSystemRequirements = require('./functions/getSystemRequirements');
 const getURLs = require('./functions/getURLs');
-const isProjectComplete = require('./functions/isProjectComplete');
 const getImagePathFromUrl = require('../../utils/image/functions/getImagePathFromUrl');
+const getNonGenericTxCommands = require('./functions/getNonGenericTxCommands');
+const isProjectComplete = require('./functions/isProjectComplete');
 
 const DEFAULT_DOCUMENT_COUNT_PER_QUERY = 20;
 const DEFAULT_FIT_PARAMETER = 'cover';
@@ -20,6 +21,7 @@ const DUPLICATED_UNIQUE_FIELD_ERROR_CODE = 11000;
 const IMAGE_HEIGHT = 200;
 const IMAGE_WIDTH = 200;
 const IMAGE_NAME_PREFIX = 'klein project ';
+const MAX_DATABASE_ARRAY_FIELD_LENGTH = 1e5;
 const MAX_DATABASE_TEXT_FIELD_LENGTH = 1e4;
 const MAX_DATABASE_LONG_TEXT_FIELD_LENGTH = 1e5;
 const MAX_DOCUMENT_COUNT_PER_QUERY = 1e2;
@@ -51,6 +53,11 @@ const ProjectSchema = new Schema({
   image: {
     type: Array,
     default: null
+  },
+  non_generic_tx_commands : {
+    type: Array,
+    default: [],
+    maxlength: MAX_DATABASE_ARRAY_FIELD_LENGTH
   },
   properties: { // Properties of the project.
     type: Object,
@@ -115,7 +122,8 @@ ProjectSchema.statics.createProject = function (data, callback) {
         is_incentivized: false,
         is_mainnet: false,
         is_visible: false
-      }
+      },
+      non_generic_tx_commands: [],
     };
 
     const newProject = new Project(newProjectData);
@@ -224,6 +232,9 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
   if (data.description && typeof data.description == 'string' && data.description.trim().length && data.description.trim().length < MAX_DATABASE_TEXT_FIELD_LENGTH)
     updateData.description = data.description.trim();
 
+  if (data.non_generic_tx_commands && Array.isArray(data.non_generic_tx_commands) && data.non_generic_tx_commands.length < MAX_DATABASE_ARRAY_FIELD_LENGTH)
+    updateData.non_generic_tx_commands = getNonGenericTxCommands(data.non_generic_tx_commands);
+
   if (data.properties && typeof data.properties == 'object')
     updateData.properties = getProperties(data.properties);
 
@@ -231,7 +242,7 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
     updateData.system_requirements = getSystemRequirements(data.system_requirements);
 
   if (data.urls && typeof data.urls == 'object')
-    updateData.urls = getURLs(data.urls);
+    updateData.urls = getURLs(data.urls)
 
   if (!Object.keys(updateData).length)
     return callback('bad_request');
@@ -284,7 +295,7 @@ ProjectSchema.statics.findProjectByIdAndUpdate = function (id, data, callback) {
       });
     };
 
-    if (updateData.chain_registry_identifier != project.chain_registry_identifier) {
+    if (updateData.chain_registry_identifier && updateData.chain_registry_identifier != project.chain_registry_identifier) {
       Image.renameImages({
         name: IMAGE_NAME_PREFIX + updateData.chain_registry_identifier,
         url_list: project.image
