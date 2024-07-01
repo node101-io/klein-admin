@@ -33,6 +33,16 @@ block main
             label.general-image-input-wrapper(style='cursor: pointer')
               input.display-none#image(type='file')
               span.general-image-input-placeholder= __('Upload from your device.')
+      span.general-create-title= __('Non Generic Command Information')
+      .general-create-seperator
+      .general-create-input-grid-wrapper
+        .general-create-input-grid-each-item-wrapper
+          .general-select-input-wrapper
+            input.general-select-input-real-value#non-generic-command-input(value=project.non_generic_tx_commands)
+            input.general-select-input-selected-value(type='text' autocomplete='off' name='new-password' placeholder=__('Scroll to add a non generic command'), value=nonGenericTxCommands[project.non_generic_tx_commands])
+            .general-select-input-choices-wrapper
+              each command in Object.keys(nonGenericTxCommands)
+                .general-select-each-input-choice(id=command)= nonGenericTxCommands[command]
       span.general-create-title= __('Status Information')
       .general-create-seperator
       .general-create-input-grid-wrapper

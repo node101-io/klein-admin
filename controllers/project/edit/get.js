@@ -1,6 +1,18 @@
 const Project = require('../../../models/project/Project');
 
 module.exports = (req, res) => {
+  const nonGenericTxCommands = {
+    'create_validator': res.__('Create Validator'),
+    'delegate_token': res.__('Delegate Token'),
+    'edit_validator': res.__('Edit Validator'),
+    'redelegate_token': res.__('Redelegate Token'),
+    'send_token': res.__('Send Token'),
+    'undelegate_token': res.__('Undelegate Token'),
+    'unjail_validator': res.__('Unjail Validator'),
+    'vote_proposal': res.__('Vote Proposal'),
+    'withdraw_rewards': res.__('Withdraw Rewards')
+  };
+
   const properties = {
     is_active: {
       name: 'Node',
@@ -49,6 +61,7 @@ module.exports = (req, res) => {
         }
       },
       project,
+      nonGenericTxCommands,
       properties,
       systemRequirements,
       URLs
