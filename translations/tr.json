@@ -203,5 +203,7 @@
 	"Withdraw Rewards": "Withdraw Rewards",
 	"Non Generic Command Information": "Non Generic Command Information",
 	"Scroll to add a non generic command": "Scroll to add a non generic command",
-	"Non Generic Command": "Non Generic Command"
+	"Non Generic Command": "Non Generic Command",
+	"✅ means the command is default, ❌ means the project has a custom command.": "✅ means the command is default, ❌ means the project has a custom command.",
+	"Command": "Command"
 }

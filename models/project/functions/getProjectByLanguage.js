@@ -13,6 +13,7 @@ module.exports = function (project, language, callback) {
     chain_registry_identifier: project.chain_registry_identifier,
     description: translation.description,
     image: project.image,
+    non_generic_tx_commands: project.non_generic_tx_commands,
     properties: project.properties,
     system_requirements: project.system_requirements,
     urls: project.urls,

@@ -33,15 +33,6 @@ block main
             label.general-image-input-wrapper(style='cursor: pointer')
               input.display-none#image(type='file')
               span.general-image-input-placeholder= __('Upload from your device.')
-      span.general-create-title= __('Non Generic Command Information')
-      .general-create-seperator
-      .general-create-text= __('✅ means the command is default, ❌ means the project has a custom command.')
-      .general-create-input-grid-wrapper
-        .general-create-input-grid-each-item-wrapper
-          input.display-none#non-generic-tx-commands-json(type='text' value=JSON.stringify(project.non_generic_tx_commands))
-          each command, index in Object.keys(nonGenericTxCommands)
-            button.general-button.tx-command(id=command)= nonGenericTxCommands[command]
-              .general-create-text(style='margin-left: auto;')= project.non_generic_tx_commands && project.non_generic_tx_commands.includes(command) ? '❌' : '✅'
       span.general-create-title= __('Status Information')
       .general-create-seperator
       .general-create-input-grid-wrapper
@@ -61,6 +52,15 @@ block main
           .general-create-input-grid-each-item-wrapper
             span.general-create-subtitle #{systemRequirements[requirement]} #{__('Requirement')}
             input.general-input.system-requirement-input(type='text' id=requirement placeholder=__('Requirement') value=project.system_requirements[requirement])
+      span.general-create-title= __('Non Generic Command Information')
+      .general-create-seperator
+      .general-create-text= __('✅ means the command is default, ❌ means the project has a custom command.')
+      .general-create-input-grid-wrapper
+        each command, index in Object.keys(nonGenericTxCommands)
+          .general-create-input-grid-each-item-wrapper
+            input.display-none#non-generic-tx-commands-json(type='text' value=JSON.stringify(project.non_generic_tx_commands))
+            button.general-button.tx-command(id=command)= nonGenericTxCommands[command]
+              .general-create-text(style='margin-left: auto;')= project.non_generic_tx_commands && project.non_generic_tx_commands.includes(command) ? '❌' : '✅'
       span.general-create-title= __('URLs')
       .general-create-seperator
       .general-create-input-grid-wrapper
