@@ -122,7 +122,8 @@ ProjectSchema.statics.createProject = function (data, callback) {
         is_incentivized: false,
         is_mainnet: false,
         is_visible: false
-      }
+      },
+      non_generic_tx_commands: [],
     };
 
     const newProject = new Project(newProjectData);
