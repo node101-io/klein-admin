@@ -61,7 +61,7 @@ if (cluster.isMaster) {
   });
 
   app.use(express.static(path.join(__dirname, 'public')));
-  app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+  app.use(favicon(path.join(__dirname, 'public', 'img/icons/favicon.ico')));
   app.use(bodyParser.json({ limit: MAX_SERVER_UPLOAD_LIMIT }));
   app.use(bodyParser.urlencoded({
     extended: true,
