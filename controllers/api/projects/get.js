@@ -22,6 +22,9 @@ module.exports = (req, res) => {
       page
     };
 
+    if (req.query.name && typeof req.query.name == 'string' && req.query.name.trim().length)
+      filters.name = req.query.name.trim();
+
     Project.findProjectCountByFilters(filters, (err, count) => {
       if (err) return res.json({
         success: false,
