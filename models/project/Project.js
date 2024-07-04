@@ -628,4 +628,4 @@ ProjectSchema.statics.findProjectByIdAndRestore = function (id, callback) {
   })
 };
 
-module.exports = mongoose.model('Project', ProjectSchema);
+module.exports = mongoose.model('KleinProject', ProjectSchema);
