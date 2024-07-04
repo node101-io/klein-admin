@@ -1,10 +1,5 @@
 const Project = require('../../../models/project/Project');
 
-const TEN_SECONDS_IN_MS = 10 * 1000;
-
-const lastRequestTime = {};
-const lastRequestResponse = {};
-
 module.exports = (req, res) => {
   if (req.query.id && typeof req.query.id == 'string' && req.query.id.trim().length) {
     Project.findProjectByIdAndFormat(req.query.id, (err, project) => {
@@ -20,16 +15,6 @@ module.exports = (req, res) => {
     });
   } else {
     const page = !isNaN(req.query.page) && parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 0;
-
-    console.log(page, lastRequestTime[page]);
-
-    if (lastRequestTime[page] && lastRequestTime[page] > Date.now() - TEN_SECONDS_IN_MS)
-      return res.json({
-        success: true,
-        projects: lastRequestResponse[page]
-      });
-
-    lastRequestTime[page] = Date.now();
 
     const filters = {
       is_deleted: false,
@@ -49,20 +34,13 @@ module.exports = (req, res) => {
           error: err
         });
 
-        lastRequestResponse[page] = {
+        return res.json({
+          success: true,
           projects: data.projects,
+          count,
           limit: data.limit,
           page: data.page,
           search: data.search
-        };
-
-        return res.json({
-          success: true,
-          projects: lastRequestResponse[page].projects,
-          count,
-          limit: lastRequestResponse[page].limit,
-          page: lastRequestResponse[page].page,
-          search: lastRequestResponse[page].search
         });
       });
     });
