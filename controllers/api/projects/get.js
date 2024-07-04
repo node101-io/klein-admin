@@ -6,8 +6,8 @@ const lastRequestTime = {};
 const lastRequestResponse = {};
 
 module.exports = (req, res) => {
-  if (req.query._id && typeof req.query._id == 'string' && req.query._id.trim().length) {
-    Project.findProjectByIdAndFormat(req.query._id, (err, project) => {
+  if (req.query.id && typeof req.query.id == 'string' && req.query.id.trim().length) {
+    Project.findProjectByIdAndFormat(req.query.id, (err, project) => {
       if (err) return res.json({
         success: false,
         error: err
