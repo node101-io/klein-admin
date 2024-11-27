@@ -83,6 +83,10 @@ if (cluster.isMaster) {
   app.use(sessionOptions);
 
   app.use((req, res, next) => {
+    res.append('Access-Control-Allow-Origin', ['http://localhost:10101']);
+    res.append('Access-Control-Allow-Methods', 'GET,POST');
+    res.append('Access-Control-Allow-Headers', 'Content-Type');
+
     if (!req.query || typeof req.query != 'object')
       req.query = {};
     if (!req.body || typeof req.body != 'object')
