@@ -78,7 +78,6 @@ const Image = {
                   Key: imagePath,
                   Body: image,
                   ContentType: 'image/webp',
-                  ACL: 'public-read'
                 }), err => {
                   if (err) return next('aws_database_error');
 
